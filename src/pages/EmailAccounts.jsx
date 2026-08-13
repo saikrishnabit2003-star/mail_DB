@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { emailAccountsService } from '../services/emailAccounts.service'
+import { profilesService } from '../services/profiles.service'
 import { optionsService } from '../services/options.service'
 import { useAuth } from '../context/AuthContext'
 import Table from '../components/ui/Table'
@@ -39,6 +40,17 @@ export default function EmailAccounts() {
   })
   const accounts = data?.data?.data || []
   const employees = employeesData?.data?.data || []
+
+  const activeEmployeeIdForAccounts = isAdmin(user)
+    ? (form.employeeId || selectedEmployeeId)
+    : user?.employeeId
+
+  const { data: profilesData } = useQuery({
+    queryKey: ['profiles-for-account', activeEmployeeIdForAccounts],
+    queryFn: () => profilesService.list(activeEmployeeIdForAccounts || undefined),
+    enabled: !!activeEmployeeIdForAccounts || !isAdmin(user),
+  })
+  const availableProfiles = profilesData?.data?.data || []
 
   const createMut = useMutation({
     mutationFn: (d) => emailAccountsService.create(d, selectedEmployeeId),
@@ -237,6 +249,27 @@ export default function EmailAccounts() {
               ))}
             </Select>
           )}
+          
+          {(isAdmin(user) ? !!activeEmployeeIdForAccounts : true) && (
+            <Select
+              label="Profile (Auto-fill Email)"
+              value=""
+              onChange={(e) => {
+                const pId = e.target.value;
+                const selectedProf = availableProfiles.find(p => p.id === pId);
+                if (selectedProf && selectedProf.gmailAccount) {
+                  setForm(prev => ({ ...prev, email: selectedProf.gmailAccount }));
+                }
+              }}
+            >
+              <option value="">Select Profile...</option>
+              {availableProfiles.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.profileName} {p.gmailAccount ? `— ${p.gmailAccount}` : ''}
+                </option>
+              ))}
+            </Select>
+          )}
           <Input label="Display Name" value={form.displayName || ''} onChange={f('displayName')} placeholder="Marketing Team" />
           <Input 
             label="Email Address" 
@@ -245,13 +278,18 @@ export default function EmailAccounts() {
             onChange={f('email')}
             placeholder="you@gmail.com" 
           />
-          <Input 
-            label={modal === 'create' ? 'App Password' : 'App Password (leave blank to keep current)'}
-            type="password" 
-            value={form.appPassword || ''} 
-            onChange={f('appPassword')} 
-            placeholder={modal === 'create' ? 'Gmail app password' : 'Enter new password if changing'} 
-          />
+          <div className="space-y-1">
+            <Input 
+              label={modal === 'create' ? 'App Password' : 'App Password (leave blank to keep current)'}
+              type="password" 
+              value={form.appPassword || ''} 
+              onChange={f('appPassword')} 
+              placeholder={modal === 'create' ? 'Gmail app password' : 'Enter new password if changing'} 
+            />
+            <p className="text-xs text-gray-500">
+  Click <a href="https://accounts.google.com/signin/v2/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> to open your Google Account settings. First, enable 2-Step Verification (MFA). Then search for "App Passwords", enter your account password when prompted, and generate an app password. Use the generated password here.
+</p>
+          </div>
           <Select label="Account Type" value={form.accountType || 'gmail_smtp'} onChange={f('accountType')}>
             <option value="gmail_smtp">Gmail SMTP</option>
             <option value="smtp">Custom SMTP</option>

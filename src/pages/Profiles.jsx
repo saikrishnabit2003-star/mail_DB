@@ -22,6 +22,7 @@ const TABS = [
   { id: 'templates', label: 'Templates', icon: LayoutTemplate },
   { id: 'filters', label: 'Filters', icon: Filter },
   { id: 'sending', label: 'Sending Options', icon: Settings2 },
+  { id: 'test', label: 'TEST', icon: Settings2 },
 ]
 
 const defaultForm = {
@@ -59,6 +60,7 @@ export default function Profiles() {
   const [isCountingFilters, setIsCountingFilters] = useState(false)
   const [activeTab, setActiveTab] = useState('info') // info, templates, filters, sending
   const [selected, setSelected] = useState(null)
+  const [testEmail, setTestEmail] = useState('')
 
   // Fetch employees list for admin dropdown
   const { data: employeesData } = useQuery({
@@ -120,6 +122,12 @@ export default function Profiles() {
   const toggleMut = useMutation({
     mutationFn: ({ id, active }) => active ? profilesService.deactivate(id, selectedEmployeeId) : profilesService.activate(id, selectedEmployeeId),
     onSuccess: () => { qc.invalidateQueries(['profiles']); toast.success('Updated') },
+  })
+
+  const testEmailMut = useMutation({
+    mutationFn: (data) => profilesService.testEmail(selected.id, data, selectedEmployeeId),
+    onSuccess: (res) => { toast.success(res.data?.message || 'Test email sent') },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to send test email'),
   })
 
   const f = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }))
@@ -257,6 +265,7 @@ export default function Profiles() {
   const openModal = (type, profile = null) => {
     setActiveTab('info')
     setFilterCount(null)
+    setTestEmail('')
     if (profile) {
       setSelected(profile)
       setForm(formatProfileForEdit(profile))
@@ -660,6 +669,39 @@ export default function Profiles() {
                 </div>
               </div>
             )}
+
+            {/* TEST TAB */}
+            {activeTab === 'test' && (
+              <div className="space-y-5">
+                <p className="text-sm text-gray-500">Send a test email to verify your profile settings.</p>
+                {!selected?.id ? (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+                    <strong>Note:</strong> Please save the profile first before sending a test email.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <Input 
+                      label="To Email" 
+                      value={testEmail} 
+                      onChange={(e) => setTestEmail(e.target.value)} 
+                      placeholder="e.g. test@example.com"
+                    />
+                    <div>
+                      <Button 
+                        onClick={() => {
+                          if (!testEmail) return toast.error('Please enter an email address')
+                          testEmailMut.mutate({ toEmail: testEmail })
+                        }}
+                        loading={testEmailMut.isPending}
+                        disabled={!testEmail}
+                      >
+                        Send Test Email
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── Footer ── */}
@@ -677,7 +719,7 @@ export default function Profiles() {
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
-              {activeTab === 'sending' ? (
+              {activeTab === 'test' ? (
                 <Button onClick={handleSave} loading={createMut.isPending || updateMut.isPending}>
                   {modal === 'create' ? 'Create Profile' : 'Save Changes'}
                 </Button>

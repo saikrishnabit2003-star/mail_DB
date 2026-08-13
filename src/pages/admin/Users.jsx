@@ -12,6 +12,12 @@ import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { useAuth } from '../../context/AuthContext'
 
+const StatBadge = ({ value, colorClass }) => (
+  <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-md text-xs font-bold transition-all duration-300 hover:scale-110 shadow-sm ${colorClass}`}>
+    {value ?? '—'}
+  </span>
+)
+
 export default function Users() {
   const qc = useQueryClient()
   const { user: currentUser } = useAuth()
@@ -90,27 +96,44 @@ export default function Users() {
   }
 
   const columns = [
-    { key: 'sno', label: 'S.No', render: (_, __, i) => i + 1 },
-    { key: 'name', label: 'Name' },
-    { key: 'email', label: 'Email' },
+    { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{i + 1}</span> },
+    { 
+      key: 'user', 
+      label: 'User Info', 
+      render: (_, row) => (
+        <div className="flex items-center gap-3 group">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm group-hover:shadow-md transition-all duration-300 group-hover:scale-105">
+            {row.name?.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex flex-col">
+            <span className="font-semibold text-gray-900">{row.name}</span>
+            <span className="text-xs text-gray-500">{row.email}</span>
+          </div>
+        </div>
+      ) 
+    },
     { key: 'role', label: 'Role', render: (v) => <Badge label={v} /> },
     { key: 'status', label: 'Status', render: (v) => <Badge label={v} /> },
-    { key: 'branch', label: 'Branch', render: (v) => v || '—' },
-    { key: 'password', label: 'Password', render: (v) => v ? <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{v}</code> : '—' },
-    { key: 'totalUploads', label: 'Uploads', render: (v, row) => <Badge label={row.stats?.uniqueUploads ?? '—'} /> },
-    { key: 'totalProfiles', label: 'Profiles', render: (v, row) => <Badge label={row.stats?.totalProfiles ?? '—'} /> },
-    { key: 'totalCampaigns', label: 'Campaigns', render: (v, row) => <Badge label={row.stats?.totalCampaigns ?? '—'} /> },
-    { key: 'runningCampaigns', label: 'Running', render: (v, row) => <Badge label={row.stats?.runningCampaigns ?? '—'} /> },
-     { key: 'pendingCampaigns', label: 'Pending Campaigns', render: (v, row) => <Badge label={row.stats?.pendingCampaigns ?? '—'} /> },
-    { key: 'pendingEmails', label: 'Pending Mails', render: (v, row) => <Badge label={row.stats?.pendingEmails ?? '—'} /> },
-    { key: 'createdAt', label: 'Created', render: (v) => v ? format(new Date(v), 'MMM d, yyyy') : '—' },
+    { key: 'branch', label: 'Branch', render: (v) => <span className="text-gray-600 font-medium">{v || '—'}</span> },
+    { 
+      key: 'password', 
+      label: 'Password', 
+      render: (v) => v ? <span className="bg-gray-50 text-gray-600 border border-gray-200 px-2 py-1 rounded-md text-xs tracking-wider font-mono">{v}</span> : '—' 
+    },
+    { key: 'totalUploads', label: 'Uploads', render: (v, row) => <StatBadge value={row.stats?.uniqueUploads} colorClass="bg-blue-50 text-blue-700 border border-blue-200" /> },
+    { key: 'totalProfiles', label: 'Profiles', render: (v, row) => <StatBadge value={row.stats?.totalProfiles} colorClass="bg-indigo-50 text-indigo-700 border border-indigo-200" /> },
+    { key: 'totalCampaigns', label: 'Campaigns', render: (v, row) => <StatBadge value={row.stats?.totalCampaigns} colorClass="bg-purple-50 text-purple-700 border border-purple-200" /> },
+    { key: 'runningCampaigns', label: 'Running', render: (v, row) => <StatBadge value={row.stats?.runningCampaigns} colorClass="bg-green-50 text-green-700 border border-green-200" /> },
+    { key: 'pendingCampaigns', label: 'Pending Campaign', render: (v, row) => <StatBadge value={row.stats?.pendingCampaigns} colorClass="bg-yellow-50 text-yellow-700 border border-yellow-200" /> },
+    { key: 'pendingEmails', label: 'Pending Mails', render: (v, row) => <StatBadge value={row.stats?.pendingEmails} colorClass="bg-red-50 text-red-700 border border-red-200" /> },
+    { key: 'createdAt', label: 'Created', render: (v) => v ? <span className="text-gray-500 whitespace-nowrap">{format(new Date(v), 'MMM d, yyyy')}</span> : '—' },
     {
       key: 'actions', label: '',
       render: (_, row) => (
-        <div className="flex items-center gap-1">
-          <button onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
-          <button onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"><Key className="w-4 h-4" /></button>
-          <button onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+        <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+          <button onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
+          <button onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Change Password"><Key className="w-4 h-4" /></button>
+          <button onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
         </div>
       )
     }

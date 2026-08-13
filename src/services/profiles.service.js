@@ -32,6 +32,12 @@ export const profilesService = {
     return api.delete(`/profiles/${id}`, { params })
   },
 
+  testEmail: (profileId, data, employeeId = null) => {
+    const params = employeeId ? { employeeId } : {}
+    console.log(`/profiles/${profileId}/test-email`, data, { params })
+    return api.post(`/profiles/${profileId}/test-email`, data, { params })
+  },
+
   countFiltered: (filters, employeeId) =>
     api.post('/email-master/count-filtered', filters, { params: employeeId ? { employeeId } : {} }),
 
