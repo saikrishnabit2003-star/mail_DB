@@ -146,14 +146,16 @@ export default function AdminDashboard() {
 
       {/* Admin-specific upload cards */}
       {(isAdmin || isSuperAdmin) && (
-        <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-5" variants={itemVariants}>
-          <div>
-            <h2 className="text-lg font-bold mb-4 text-muted-foreground uppercase tracking-wider text-xs">Your Activity</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <EnhancedStatCard label="Your Uploads" value={d?.adminOwnUploads} icon={Database} color="purple" subtitle="Files you uploaded" />
-            <EnhancedStatCard label="Your Team's Uploads" value={d?.assignedEmployeeUploads} icon={Users2} color="cyan" subtitle="Assigned employees" />
-          </div>
-          </div>
+        <motion.div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-5`} variants={itemVariants}>
+          {isAdmin && (
+            <div>
+              <h2 className="text-lg font-bold mb-4 text-muted-foreground uppercase tracking-wider text-xs">Your Activity</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <EnhancedStatCard label="Your Uploads" value={d?.adminOwnUploads} icon={Database} color="purple" subtitle="Files you uploaded" />
+                <EnhancedStatCard label="Your Team's Uploads" value={d?.assignedEmployeeUploads} icon={Users2} color="cyan" subtitle="Assigned employees" />
+              </div>
+            </div>
+          )}
 
           <div>
             <h2 className="text-lg font-bold mb-4 text-muted-foreground uppercase tracking-wider text-xs">Campaign Metrics</h2>

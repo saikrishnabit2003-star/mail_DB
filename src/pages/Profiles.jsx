@@ -281,6 +281,13 @@ export default function Profiles() {
       setActiveTab('info')
       return toast.error('Please select an employee for this profile')
     }
+
+    const limit = parseInt(form.filterLimit, 10);
+    if (!form.filterLimit || isNaN(limit) || limit < 1 || limit > 600) {
+      setActiveTab('filters')
+      return toast.error('Filter Limit is required and must be between 1 and 600')
+    }
+
     modal === 'create' ? createMut.mutate(form) : updateMut.mutate({ id: selected.id, d: form })
   }
 
@@ -591,13 +598,15 @@ export default function Profiles() {
                 />
 
                 <Input
-                  label="Filter Limit (0 = no limit)"
+                  label="Filter Limit"
                   type="number"
                   value={form.filterLimit}
                   onChange={fFilterLimit}
                   placeholder="Max emails to fetch from filtered results"
-
+                  min="1"
                   max="600"
+                  required
+                  error={(form.filterLimit !== '' && form.filterLimit !== undefined && (parseInt(form.filterLimit, 10) < 1 || parseInt(form.filterLimit, 10) > 600)) ? "Limit must be between 1 and 600" : undefined}
                 />
 
                 <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer mt-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
