@@ -11,7 +11,7 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import MultiSelect from '../components/ui/MultiSelect'
 import { emailMasterService } from '../services/emailMaster.service'
-import { Plus, Pencil, Trash2, Power, PowerOff, Upload, X, Info, LayoutTemplate, Filter, Settings2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Power, PowerOff, Upload, X, Info, LayoutTemplate, Filter, Settings2, University } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import ReactQuill from 'react-quill'
@@ -33,7 +33,7 @@ const defaultForm = {
     { name: 'Default', subject: '', body: '' },
   ],
   attachments: [],
-  filters: { country: [], state: [], industry: [], domain: [], company: [], type: [], mailSource: [] },
+  filters: { country: [], state: [], industry: [], domain: [], University: [], type: [], mailSource: [] },
   filterLimit: 0,
   sendingOptions: { dailyLimit: 100, delayMin: 30, delayMax: 90 },
   promptSettings: { personalizeGreeting: true, improveGrammar: false, improveProfessionalism: false, aiRewrite: false, customInstruction: '' },
@@ -126,7 +126,10 @@ export default function Profiles() {
 
   const testEmailMut = useMutation({
     mutationFn: (data) => profilesService.testEmail(selected.id, data, selectedEmployeeId),
-    onSuccess: (res) => { toast.success(res.data?.message || 'Test email sent') },
+    onSuccess: (res) => { 
+      const msg = res.data?.message || res.data?.data?.message || res.message || 'Test email sent successfully';
+      toast.success(msg);
+    },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to send test email'),
   })
 
@@ -581,21 +584,15 @@ export default function Profiles() {
                     placeholder="Select industries..."
                   />
                   <MultiSelect
-                    label="Companies"
-                    value={form.filters?.company || []}
-                    onChange={val => fFilterMulti('company')(val)}
-                    options={(dropdownOptions.companies || []).map(c => ({ label: c, value: c }))}
-                    placeholder="Select companies..."
+                    label="Universities"
+                    value={form.filters?.university || []}
+                    onChange={val => fFilterMulti('university')(val)}
+                    options={(dropdownOptions.university || []).map(c => ({ label: c, value: c }))}
+                    placeholder="Select universities..."
                   />
                 </div>
 
-                <MultiSelect
-                  label="Types (Designation / Role)"
-                  value={form.filters?.type || []}
-                  onChange={val => fFilterMulti('type')(val)}
-                  options={(dropdownOptions.designations || []).map(d => ({ label: d, value: d }))}
-                  placeholder="Select types..."
-                />
+               
 
                 <Input
                   label="Filter Limit"

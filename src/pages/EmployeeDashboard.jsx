@@ -66,14 +66,14 @@ export default function EmployeeDashboard() {
       {d?.currentUser.role === 'employee' && (
         <motion.div
           variants={itemVariants}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-violet-800 text-white shadow-2xl p-8"
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-violet-800 text-white shadow-2xl p-5"
         >
           <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-5 rounded-full blur-3xl -mr-48 -mt-48 pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-white opacity-5 rounded-full blur-3xl -ml-48 -mb-48 pointer-events-none" />
           <div className="relative flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-semibold uppercase tracking-wider mb-2">Welcome Back</p>
-              <h1 className="text-4xl lg:text-5xl font-bold mb-2 tracking-tight">{d.currentUser.name}</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold mb-2 tracking-tight">{d.currentUser.name}</h1>
               <p className="text-blue-200/80">{d.currentUser.email} · Employee Workspace</p>
             </div>
             <div className="hidden lg:block">

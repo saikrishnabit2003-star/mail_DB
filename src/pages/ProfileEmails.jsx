@@ -80,7 +80,7 @@ export default function ProfileEmails() {
     },
     { key: 'fullName',    label: 'Name',    render: v => v || '—' },
     { key: 'email',       label: 'Email' },
-    { key: 'company',     label: 'Company', render: v => v || '—' },
+    { key: 'university',     label: 'University', render: v => v || '—' },
     { 
       key: 'sendStatus',  
       label: 'Status',  

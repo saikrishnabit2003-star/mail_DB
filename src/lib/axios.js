@@ -16,6 +16,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
+  console.log(token)
   return config
 })
 
@@ -36,11 +37,15 @@ api.interceptors.response.use(
           return api(original)
         } catch {
           localStorage.clear()
-          window.location.href = '/login'
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
         }
       } else {
         localStorage.clear()
-        window.location.href = '/login'
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
       }
     }
     return Promise.reject(err)

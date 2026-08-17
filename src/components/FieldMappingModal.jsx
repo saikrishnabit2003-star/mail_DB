@@ -17,7 +17,7 @@ export default function FieldMappingModal({ isOpen, onClose, headers, onConfirm,
   const dbFields = [
     { value: 'email', label: 'Email (Required)' },
     { value: 'fullName', label: 'Full Name' },
-    { value: 'company', label: 'University' },
+    { value: 'university', label: 'University' },
     { value: 'country', label: 'Country' },
     { value: 'state', label: 'State' },
     { value: 'city', label: 'City' },

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { Bell, LogOut, ChevronDown } from 'lucide-react'
+import { Settings, Bell, LogOut, ChevronDown } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsService } from '../../services/notifications.service'
 import toast from 'react-hot-toast'
@@ -56,7 +56,15 @@ export default function Header({ title }) {
       <h1 className="text-xl font-semibold text-foreground tracking-tight">{title}</h1>
 
       <div className="flex items-center gap-3">
-
+        {user?.role === 'super_admin' && (
+          <button
+            onClick={() => navigate('/settings')}
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors focus:outline-none"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        )}
 
         {/* Notifications Dropdown */}
         <div className="relative" ref={notifRef}>

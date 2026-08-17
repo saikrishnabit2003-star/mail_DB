@@ -54,7 +54,7 @@ const EnhancedStatCard = ({ label, value, icon: Icon, color, subtitle, onDoubleC
     <motion.div
       variants={itemVariants}
       whileHover={{ scale: 1.03 }}
-      className={`rounded-2xl p-6 border transition-all duration-300 hover:shadow-lg bg-card ${colorMap[color]} ${onDoubleClick ? 'cursor-pointer' : ''}`}
+      className={`rounded-2xl p-5 border transition-all duration-300 hover:shadow-lg bg-card ${colorMap[color]} ${onDoubleClick ? 'cursor-pointer' : ''}`}
       onDoubleClick={onDoubleClick}
     >
       <div className="flex items-start justify-between mb-4">
@@ -123,8 +123,8 @@ export default function AdminDashboard() {
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-white opacity-5 rounded-full blur-3xl -ml-48 -mb-48 pointer-events-none" />
           <div className="relative flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-semibold uppercase tracking-wider mb-2">Welcome Back</p>
-              <h1 className="text-4xl lg:text-5xl font-bold mb-2 tracking-tight">{d.currentUser.name}</h1>
+              <p className="text-blue-100 text-sm font-semibold uppercase tracking-wider mb-1">Welcome Back</p>
+              <h1 className="text-2xl lg:text-1xl font-bold mb-1 tracking-tight">{d.currentUser.name}</h1>
               {isAdmin && (
                 <p className="text-blue-200/80">{d.currentUser.email} · Admin</p>
               )}
@@ -149,7 +149,7 @@ export default function AdminDashboard() {
         <motion.div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-5`} variants={itemVariants}>
           {isAdmin && (
             <div>
-              <h2 className="text-lg font-bold mb-4 text-muted-foreground uppercase tracking-wider text-xs">Your Activity</h2>
+              <h2 className="text-lg font-bold mb-2 text-muted-foreground uppercase tracking-wider text-xs">Your Activity</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <EnhancedStatCard label="Your Uploads" value={d?.adminOwnUploads} icon={Database} color="purple" subtitle="Files you uploaded" />
                 <EnhancedStatCard label="Your Team's Uploads" value={d?.assignedEmployeeUploads} icon={Users2} color="cyan" subtitle="Assigned employees" />
@@ -158,7 +158,7 @@ export default function AdminDashboard() {
           )}
 
           <div>
-            <h2 className="text-lg font-bold mb-4 text-muted-foreground uppercase tracking-wider text-xs">Campaign Metrics</h2>
+            <h2 className="text-lg font-bold mb-2 text-muted-foreground uppercase tracking-wider text-xs">Campaign Metrics</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <EnhancedStatCard label="Total Campaigns" value={d?.totalCampaigns} icon={Activity} color="green" subtitle="All time" onDoubleClick={() => { nav("/campaigns")  }} />
               <EnhancedStatCard label="Running Campaigns" value={d?.runningCampaigns} icon={Play} color="cyan" subtitle="Active now" />
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
 
       {/* Core Metrics */}
       <motion.div variants={itemVariants}>
-        <h2 className="text-lg font-bold mb-4 text-muted-foreground uppercase tracking-wider text-xs">Core Metrics</h2>
+        <h2 className="text-lg font-bold mb-2 text-muted-foreground uppercase tracking-wider text-xs">Core Metrics</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
           <EnhancedStatCard label="Total Uploads" value={d?.totalUploads} icon={Database} color="cyan" subtitle="CSV/Excel files" />
           <EnhancedStatCard label="Total Profiles" value={d?.totalProfiles} icon={Mail} color="green" subtitle="All profiles" />

@@ -13,7 +13,7 @@ import EmailAccounts    from './pages/EmailAccounts'
 import Campaigns        from './pages/Campaigns'
 import ProfileEmails    from './pages/ProfileEmails'
 import Notifications    from './pages/Notifications'
-
+import Settings         from './pages/admin/Settings'
 function RootRedirect() {
   const { user, loading } = useAuth()
   if (loading) return null
@@ -74,6 +74,11 @@ export default function App() {
       <Route path="/notifications" element={
         <ProtectedRoute>
           <Layout><Notifications /></Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/settings" element={
+        <ProtectedRoute role="super_admin">
+          <Layout><Settings /></Layout>
         </ProtectedRoute>
       } />
 

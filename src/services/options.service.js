@@ -15,4 +15,10 @@ export const optionsService = {
     const params = employeeId ? { employeeId } : {}
     return api.get('/options/campaigns', { params })
   },
+  
+  // Get settings
+  getSettings: () => api.get('/settings'),
+  
+  // Update settings
+  updateSettings: (id, data) => api.patch(`/settings/${id}`, data),
 }

@@ -9,7 +9,7 @@ import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import SearchableSelect from '../components/ui/SearchableSelect'
-import { Upload, RefreshCw, Trash2, Users, ChevronLeft, ChevronRight, Search, Download } from 'lucide-react'
+import { Upload, RefreshCw, Trash2, Users, ChevronLeft, ChevronRight, Search, Download, ChevronUp, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
@@ -28,7 +28,7 @@ export default function EmailMaster() {
   const [stateFilter, setStateFilter] = useState('')
   const [domainFilter, setDomainFilter] = useState('')
   const [industryFilter, setIndustryFilter] = useState('')
-  const [companyFilter, setCompanyFilter] = useState('')
+  const [universityFilter, setuniversityFilter] = useState('')
   const [uploaderFilter, setUploaderFilter] = useState('')
   const [mailSourceFilter, setMailSourceFilter] = useState('')
   const [includeDuplicates, setIncludeDuplicates] = useState(true)
@@ -41,7 +41,8 @@ export default function EmailMaster() {
   const [historyEmployee, setHistoryEmployee] = useState('')
   const [historyPage, setHistoryPage] = useState(1)
   const [historyPageSize, setHistoryPageSize] = useState(20)
-
+  const [historySortField, setHistorySortField] = useState(null)
+  const [historySortOrder, setHistorySortOrder] = useState('desc')
   // Upload Wizard States
   const [uploadStep, setUploadStep] = useState(1)
   const [workbook, setWorkbook] = useState(null)
@@ -53,10 +54,10 @@ export default function EmailMaster() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
-  const STANDARD_FIELDS = ['Email', 'Name', 'University', 'Country', 'State', 'City', 'Industry', 'Designation', 'Domain', 'Phone', 'Website', 'LinkedIn']
+  const STANDARD_FIELDS = ['Email', 'Full Name', 'University', 'Country', 'State', 'City', 'Industry', 'Designation', 'Domain', 'Phone', 'Website', 'LinkedIn', 'Citation']
 
   const { data, isLoading } = useQuery({
-    queryKey: ['email-master', page, pageSize, search, countryFilter, stateFilter, domainFilter, industryFilter, companyFilter, uploaderFilter, mailSourceFilter, includeDuplicates],
+    queryKey: ['email-master', page, pageSize, search, countryFilter, stateFilter, domainFilter, industryFilter, universityFilter, uploaderFilter, mailSourceFilter, includeDuplicates],
     queryFn: () => emailMasterService.list({
       page,
       pageSize,
@@ -65,7 +66,7 @@ export default function EmailMaster() {
       state: stateFilter || undefined,
       domain: domainFilter || undefined,
       industry: industryFilter || undefined,
-      company: companyFilter || undefined,
+      university: universityFilter || undefined,
       uploadedBy: uploaderFilter || undefined,
       mailSource: mailSourceFilter || undefined,
       includeDuplicates,
@@ -102,7 +103,16 @@ export default function EmailMaster() {
   const responseData = historyData?.data || {}
   const rawLogs = responseData.records || responseData.data?.records || []
   console.log("UPLOAD HISTORY RESPONSE:", responseData)
-  const historyLogs = Array.isArray(rawLogs) ? rawLogs : []
+  let historyLogs = Array.isArray(rawLogs) ? [...rawLogs] : []
+
+  if (historySortField) {
+    historyLogs.sort((a, b) => {
+      let valA = a[historySortField] || 0
+      let valB = b[historySortField] || 0
+      if (historySortOrder === 'asc') return valA - valB
+      return valB - valA
+    })
+  }
   const historyPagination = responseData.pagination || responseData.data?.pagination || { page: 1, total: 0, total_pages: 1 }
   const historyTotal = historyPagination.total || 0
   const historyTotalPages = historyPagination.total_pages || 1
@@ -229,13 +239,35 @@ export default function EmailMaster() {
     }, 100)
   }
 
+  const handleDownloadSample = () => {
+    const sampleData = [{
+      'Email': 'sample@example.com',
+      'Full Name': 'John Doe',
+      'University': 'Sample University',
+      'Country': 'USA',
+      'State': 'CA',
+      'City': 'San Francisco',
+      'Industry': 'Technology',
+      'Designation': 'Engineer',
+      'Domain': 'example.com',
+      'Phone': '1234567890',
+      'Website': 'https://example.com',
+      'LinkedIn': 'https://linkedin.com/in/sample',
+      'Citation': ''
+    }]
+    const ws = XLSX.utils.json_to_sheet(sampleData, { header: STANDARD_FIELDS })
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Sample')
+    XLSX.writeFile(wb, 'sample_emails.xlsx')
+  }
+
   const stats = statsData?.data?.stats || []
 
   const columns = [
     { key: 'sno', label: 'S.No', sortable: false, render: (_, __, i) => i + 1 + (page - 1) * pageSize },
     { key: 'fullName', label: 'Full Name', render: v => v || '—' },
     { key: 'email', label: 'Email', render: v => <span className="font-medium text-blue-600">{v}</span> },
-    { key: 'company', label: 'University', render: v => v || '—' },
+    { key: 'university', label: 'University', render: v => v || '—' },
     {
       key: 'website', label: 'Website',
       render: v => v
@@ -293,14 +325,34 @@ export default function EmailMaster() {
     }
   ]
 
+  const handleHistorySort = (field) => {
+    if (historySortField === field) {
+      setHistorySortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
+    } else {
+      setHistorySortField(field)
+      setHistorySortOrder('desc')
+    }
+  }
+
+  const renderHistorySortHeader = (title, field) => (
+    <div className="flex items-center gap-1 cursor-pointer" onClick={() => handleHistorySort(field)}>
+      <span>{title}</span>
+      <div className="flex flex-col text-[8px] opacity-50">
+        <ChevronUp className={`w-3 h-3 -mb-1 ${historySortField === field && historySortOrder === 'asc' ? 'text-primary-600 opacity-100' : ''}`} />
+        <ChevronDown className={`w-3 h-3 ${historySortField === field && historySortOrder === 'desc' ? 'text-primary-600 opacity-100' : ''}`} />
+      </div>
+    </div>
+  )
+
   const historyColumns = [
+    { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{i + 1 + (historyPage - 1) * historyPageSize}</span> },
     { key: 'employeeName', label: 'Employee', render: v => <span className="font-medium text-gray-900">{v || 'Unknown'}</span> },
     { key: 'employeeEmail', label: 'Email', render: v => <span className="text-gray-500">{v || '—'}</span> },
     { key: 'date', label: 'Date', render: v => { if (!v) return '—'; const d = String(v).split('T')[0]; return <span className="text-gray-500">{format(new Date(d + 'T00:00:00'), 'MMM d, yyyy')}</span> } },
-    { key: 'uploadCount', label: 'Total Uploaded', render: v => <span className="font-semibold text-gray-900">{(v || 0).toLocaleString()}</span> },
-    { key: 'uniqueCount', label: 'Unique', render: v => <span className="font-medium text-emerald-600">{(v || 0).toLocaleString()}</span> },
-    { key: 'duplicateCount', label: 'Duplicate', render: v => <span className="font-medium text-amber-500">{(v || 0).toLocaleString()}</span> },
-    { key: 'invalidCount', label: 'Invalid', render: v => <span className="font-medium text-red-500">{(v || 0).toLocaleString()}</span> },
+    { key: 'uploadCount', label: renderHistorySortHeader('Total Uploaded', 'uploadCount'), render: v => <span className="font-semibold text-gray-900">{(v || 0).toLocaleString()}</span> },
+    { key: 'uniqueCount', label: renderHistorySortHeader('Unique', 'uniqueCount'), render: v => <span className="font-medium text-emerald-600">{(v || 0).toLocaleString()}</span> },
+    { key: 'duplicateCount', label: renderHistorySortHeader('Duplicate', 'duplicateCount'), render: v => <span className="font-medium text-amber-500">{(v || 0).toLocaleString()}</span> },
+    { key: 'invalidCount', label: renderHistorySortHeader('Invalid', 'invalidCount'), render: v => <span className="font-medium text-red-500">{(v || 0).toLocaleString()}</span> },
   ]
 
   return (
@@ -310,8 +362,8 @@ export default function EmailMaster() {
         <button
           onClick={() => setActiveTab('upload')}
           className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'upload'
-              ? 'bg-white text-primary-600 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+            ? 'bg-white text-primary-600 shadow-sm'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
             }`}
         >
           Upload File
@@ -321,8 +373,8 @@ export default function EmailMaster() {
             <button
               onClick={() => setActiveTab('table')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'table'
-                  ? 'bg-white text-primary-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
                 }`}
             >
               Show Table
@@ -330,8 +382,8 @@ export default function EmailMaster() {
             <button
               onClick={() => setActiveTab('history')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'history'
-                  ? 'bg-white text-primary-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
                 }`}
             >
               History
@@ -346,7 +398,7 @@ export default function EmailMaster() {
 
             {uploadStep === 1 && (
               <>
-                <h3 className="font-semibold text-gray-800 mb-4">Step 1: Upload Emails (Global Pool)</h3>
+                <h3 className="font-semibold text-gray-800 mb-4">Step 1: Upload Emails (Global DB)</h3>
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="w-44">
                     <Select
@@ -362,10 +414,16 @@ export default function EmailMaster() {
                   </div>
 
                   <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
-                  <Button onClick={() => fileRef.current.click()} loading={isProcessing} disabled={!mailSourceUpload}>
-                    <Upload className="w-4 h-4" />
-                    {isProcessing ? 'Processing...' : 'Select File'}
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button onClick={() => fileRef.current.click()} loading={isProcessing} disabled={!mailSourceUpload}>
+                      <Upload className="w-4 h-4" />
+                      {isProcessing ? 'Processing...' : 'Select File'}
+                    </Button>
+                    <Button variant="secondary" onClick={handleDownloadSample}>
+                      <Download className="w-4 h-4" />
+                      Download Sample
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
@@ -585,7 +643,25 @@ export default function EmailMaster() {
         <div className="space-y-5">
           {/* Filters */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <h3 className="font-semibold text-gray-800 mb-4">Filters</h3>
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-medium text-gray-700">Filters</p>
+              {(countryFilter || stateFilter || domainFilter || industryFilter || uploaderFilter || mailSourceFilter) && (
+                <button
+                  onClick={() => {
+                    setCountryFilter('')
+                    setStateFilter('')
+                    setDomainFilter('')
+                    setIndustryFilter('')
+                    setUploaderFilter('')
+                    setMailSourceFilter('')
+                    setPage(1)
+                  }}
+                  className="text-xs font-medium text-red-500 hover:text-red-600 hover:underline transition-all cursor-pointer"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {/* The search is now in the table header */}
               <SearchableSelect
@@ -658,39 +734,25 @@ export default function EmailMaster() {
 
           {/* Results Card */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            {/* Card Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-4 bg-white">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search records..."
-                  className="pl-9 pr-4 py-2 w-64 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                  value={search}
-                  onChange={e => { setSearch(e.target.value); setPage(1) }}
-                />
+            {/* Combined Header */}
+            <div className="p-4 border-b border-gray-200 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white text-sm text-gray-500">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search records..."
+                    className="pl-9 pr-4 py-2 w-full sm:w-64 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setPage(1) }}
+                  />
+                </div>
+                <div>
+                  Showing <span className="font-medium text-gray-900">{total > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</span> of <span className="font-medium text-gray-900">{total}</span> records
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                {/* <button 
-              onClick={() => qc.invalidateQueries(['email-master'])}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" /> Refresh
-            </button>
-            <button 
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <Download className="w-4 h-4" /> Export
-            </button> */}
-              </div>
-            </div>
-
-            {/* Pagination header above table */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between text-sm text-gray-500 bg-white">
-              <div>
-                Showing <span className="font-medium text-gray-900">{total > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</span> of <span className="font-medium text-gray-900">{total}</span> records
-              </div>
-              <div className="flex items-center gap-4">
+              
+              <div className="flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span>Show:</span>
                   <select
