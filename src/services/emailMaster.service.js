@@ -10,7 +10,7 @@ export const emailMasterService = {
     if (mailSource) params.mailSource = mailSource
     // console.log("maxLimit", maxLimit)
     // console.log("mailSource", mailSource)
-    // console.log("form", form)
+    
     return api.post('/email-master/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
       params,

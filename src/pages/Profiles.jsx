@@ -14,8 +14,12 @@ import { emailMasterService } from '../services/emailMaster.service'
 import { Plus, Pencil, Trash2, Power, PowerOff, Upload, X, Info, LayoutTemplate, Filter, Settings2, University } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
-import ReactQuill from 'react-quill'
+import ReactQuill, { Quill } from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
+
+const Block = Quill.import('blots/block')
+Block.tagName = 'DIV'
+Quill.register(Block, true)
 
 const TABS = [
   { id: 'info', label: 'Info', icon: Info },

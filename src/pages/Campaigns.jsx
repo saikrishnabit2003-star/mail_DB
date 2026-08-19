@@ -34,7 +34,7 @@ export default function Campaigns() {
   const [scheduleModal, setScheduleModal] = useState(false)
   const [editModal, setEditModal] = useState(false)
   const [editingCampaignId, setEditingCampaignId] = useState(null)
-  const [editDailyLimit, setEditDailyLimit] = useState('')
+  const [editDailyLimit, setEditDailyLimit] = useState()
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null)
   const [form, setForm] = useState({ 
@@ -359,8 +359,8 @@ export default function Campaigns() {
           <Input 
             label="Daily Limit" 
             type="number" 
-            value={editDailyLimit} 
-            onChange={e => setEditDailyLimit(Number(e.target.value))}
+            value={editDailyLimit ?? ''} 
+            onChange={e => setEditDailyLimit(e.target.value === '' ? '' : Number(e.target.value))}
             min="1"
             max="10000"
           />

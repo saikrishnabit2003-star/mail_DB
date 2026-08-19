@@ -54,7 +54,7 @@ export default function EmailMaster() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
-  const STANDARD_FIELDS = ['Email', 'Full Name', 'University', 'Country', 'State', 'City', 'Industry', 'Designation', 'Domain', 'Phone', 'Website', 'LinkedIn', 'Citation']
+  const STANDARD_FIELDS = ['Email', 'Full Name', 'University', 'Country', 'State', 'City', 'Industry', 'Designation', 'Domain', 'Domain Group', 'Phone', 'Website', 'LinkedIn', 'Citation']
 
   const { data, isLoading } = useQuery({
     queryKey: ['email-master', page, pageSize, search, countryFilter, stateFilter, domainFilter, industryFilter, universityFilter, uploaderFilter, mailSourceFilter, includeDuplicates],
@@ -250,6 +250,7 @@ export default function EmailMaster() {
       'Industry': 'Technology',
       'Designation': 'Engineer',
       'Domain': 'example.com',
+      'Domain Group': 'IT,AIML,IOT/python',
       'Phone': '1234567890',
       'Website': 'https://example.com',
       'LinkedIn': 'https://linkedin.com/in/sample',
@@ -271,20 +272,24 @@ export default function EmailMaster() {
     {
       key: 'website', label: 'Website',
       render: v => v
-        ? <a href={v.startsWith('http') ? v : `https://${v}`} target="_blank" rel="noreferrer" className="text-xs text-blue-500 underline truncate max-w-[120px] block">{v}</a>
+        ? <a href={v.startsWith('http') ? v : `https://${v}`} target="_blank" rel="noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
         : '—'
     },
     { key: 'country', label: 'Country', render: v => v || '—' },
     { key: 'state', label: 'State', render: v => v || '—' },
     { key: 'city', label: 'City', render: v => v || '—' },
     { key: 'domain', label: 'Domain', render: v => v || '—' },
+    { key: 'domain_group', label: 'Domain Group', render: v => {
+      const text = Array.isArray(v) ? v.join(', ') : v;
+      return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{text}</div> : '—';
+    } },
     { key: 'industry', label: 'Industry', render: v => v || '—' },
     { key: 'designation', label: 'Designation', render: v => v || '—' },
     { key: 'phone', label: 'Phone', render: v => v || '—' },
     {
       key: 'linkedin', label: 'LinkedIn',
       render: v => v
-        ? <a href={v.startsWith('http') ? v : `https://${v}`} target="_blank" rel="noreferrer" className="text-xs text-blue-500 underline">Profile</a>
+        ? <a href={v.startsWith('http') ? v : `https://${v}`} target="_blank" rel="noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
         : '—'
     },
     {
@@ -346,7 +351,7 @@ export default function EmailMaster() {
 
   const historyColumns = [
     { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{i + 1 + (historyPage - 1) * historyPageSize}</span> },
-    { key: 'employeeName', label: 'Employee', render: v => <span className="font-medium text-gray-900">{v || 'Unknown'}</span> },
+    { key: 'employeeName', label: `User's`, render: v => <span className="font-medium text-gray-900">{v || 'Unknown'}</span> },
     { key: 'employeeEmail', label: 'Email', render: v => <span className="text-gray-500">{v || '—'}</span> },
     { key: 'date', label: 'Date', render: v => { if (!v) return '—'; const d = String(v).split('T')[0]; return <span className="text-gray-500">{format(new Date(d + 'T00:00:00'), 'MMM d, yyyy')}</span> } },
     { key: 'uploadCount', label: renderHistorySortHeader('Total Uploaded', 'uploadCount'), render: v => <span className="font-semibold text-gray-900">{(v || 0).toLocaleString()}</span> },
@@ -354,7 +359,7 @@ export default function EmailMaster() {
     { key: 'duplicateCount', label: renderHistorySortHeader('Duplicate', 'duplicateCount'), render: v => <span className="font-medium text-amber-500">{(v || 0).toLocaleString()}</span> },
     { key: 'invalidCount', label: renderHistorySortHeader('Invalid', 'invalidCount'), render: v => <span className="font-medium text-red-500">{(v || 0).toLocaleString()}</span> },
   ]
-
+  console.log(uploadedFile, "UploadedFile")
   return (
     <div className="space-y-5">
       {/* Tabs */}
@@ -751,7 +756,7 @@ export default function EmailMaster() {
                   Showing <span className="font-medium text-gray-900">{total > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</span> of <span className="font-medium text-gray-900">{total}</span> records
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span>Show:</span>
