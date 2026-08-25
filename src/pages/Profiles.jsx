@@ -45,7 +45,7 @@ const defaultForm = {
 
 const quillModules = {
   toolbar: [
-    [{ 'header': [1, 2, 3, false] }],
+    [{ 'size': ['small', false, 'large', 'huge'] }],
     ['bold', 'italic', 'underline', 'link'],
     [{ 'color': [] }, { 'background': [] }],
     [{ 'list': 'ordered' }, { 'list': 'bullet' }],
@@ -581,6 +581,13 @@ export default function Profiles() {
                     placeholder="Select domains..."
                   />
                   <MultiSelect
+                    label="Domain Group"
+                    value={form.filters?.domainGroup || []}
+                    onChange={val => fFilterMulti('domainGroup')(val)}
+                    options={(dropdownOptions.domainGroups || []).map(d => ({ label: d, value: d }))}
+                    placeholder="Select domain groups..."
+                  />
+                  <MultiSelect
                     label="Industries"
                     value={form.filters?.industry || []}
                     onChange={val => fFilterMulti('industry')(val)}
@@ -594,6 +601,7 @@ export default function Profiles() {
                     options={(dropdownOptions.university || []).map(c => ({ label: c, value: c }))}
                     placeholder="Select universities..."
                   />
+                  
                 </div>
 
                

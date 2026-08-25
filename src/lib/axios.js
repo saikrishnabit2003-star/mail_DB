@@ -2,15 +2,12 @@ import axios from 'axios'
 
 // const URL = "http://13.206.26.177:5001/";
 const URL = "http://13.206.26.177:5002/";
+// const URL = "https://rcmqshpp-8080.inc1.devtunnels.ms/";
 // const URL = "http://localhost:8000/";
 const api = axios.create({
   baseURL: URL,
   headers: { 'Content-Type': 'application/json' },
 })
-// const api = axios.create({
-//   baseURL: 'http://13.206.26.177:5001/',
-//   headers: { 'Content-Type': 'application/json' },
-// })
 
 // Attach access token to every request
 api.interceptors.request.use((config) => {

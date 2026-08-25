@@ -62,6 +62,7 @@ export default function EmailMaster() {
       page,
       pageSize,
       search: search || undefined,
+      searchFields: search ? 'email,fullName,university,domain,domain_group' : undefined,
       country: countryFilter || undefined,
       state: stateFilter || undefined,
       domain: domainFilter || undefined,
@@ -264,27 +265,46 @@ export default function EmailMaster() {
 
   const stats = statsData?.data?.stats || []
 
+  const highlightMatch = (text, query) => {
+    if (!query || !text) return text;
+    const regex = new RegExp(`(${query})`, 'gi');
+    const parts = String(text).split(regex);
+    return (
+      <>
+        {parts.map((part, i) =>
+          regex.test(part) ? (
+            <mark key={i} className="bg-yellow-200 text-gray-900 rounded-sm px-0.5">
+              {part}
+            </mark>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  };
+
   const columns = [
     { key: 'sno', label: 'S.No', sortable: false, render: (_, __, i) => i + 1 + (page - 1) * pageSize },
-    { key: 'fullName', label: 'Full Name', render: v => v || '—' },
-    { key: 'email', label: 'Email', render: v => <span className="font-medium text-blue-600">{v}</span> },
-    { key: 'university', label: 'University', render: v => v || '—' },
+    { key: 'fullName', label: 'Full Name', render: v => v ? highlightMatch(v, search) : '—' },
+    { key: 'email', label: 'Email', render: v => <span className="font-medium text-blue-600">{v ? highlightMatch(v, search) : ''}</span> },
+    { key: 'university', label: 'University', render: v => v ? highlightMatch(v, search) : '—' },
     {
       key: 'website', label: 'Website',
       render: v => v
         ? <a href={v.startsWith('http') ? v : `https://${v}`} target="_blank" rel="noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
         : '—'
     },
-    { key: 'country', label: 'Country', render: v => v || '—' },
-    { key: 'state', label: 'State', render: v => v || '—' },
-    { key: 'city', label: 'City', render: v => v || '—' },
-    { key: 'domain', label: 'Domain', render: v => v || '—' },
-    { key: 'domain_group', label: 'Domain Group', render: v => {
+    { key: 'country', label: 'Country', render: v => v ? highlightMatch(v, search) : '—' },
+    { key: 'state', label: 'State', render: v => v ? highlightMatch(v, search) : '—' },
+    { key: 'city', label: 'City', render: v => v ? highlightMatch(v, search) : '—' },
+    { key: 'domain', label: 'Domain', render: v => v ? highlightMatch(v, search) : '—' },
+    { key: 'domain_group', label: 'Domain Group', minWidth: '300px', render: v => {
       const text = Array.isArray(v) ? v.join(', ') : v;
-      return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{text}</div> : '—';
+      return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{highlightMatch(text, search)}</div> : '—';
     } },
-    { key: 'industry', label: 'Industry', render: v => v || '—' },
-    { key: 'designation', label: 'Designation', render: v => v || '—' },
+    { key: 'industry', label: 'Industry', render: v => v ? highlightMatch(v, search) : '—' },
+    { key: 'designation', label: 'Designation', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'phone', label: 'Phone', render: v => v || '—' },
     {
       key: 'linkedin', label: 'LinkedIn',
