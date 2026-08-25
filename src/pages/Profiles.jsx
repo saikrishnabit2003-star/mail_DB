@@ -165,7 +165,7 @@ export default function Profiles() {
   const fFilterLimit = (e) => setForm(prev => ({ ...prev, filterLimit: e.target.value === '' ? '' : Number(e.target.value) }))
 
   const addTemplate = () => {
-    if (form.templates.length < 3) {
+    if (form.templates.length < 5) {
       setForm(prev => ({
         ...prev,
         templates: [...prev.templates, { name: '', subject: '', body: '' }]
@@ -490,8 +490,8 @@ export default function Profiles() {
             {activeTab === 'templates' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-500">up to 3 templates</p>
-                  {form.templates.length < 3 && (
+                  <p className="text-sm text-gray-500">up to 5 templates</p>
+                  {form.templates.length < 5 && (
                     <Button size="sm" variant="secondary" onClick={addTemplate}>
                       <Plus className="w-3 h-3" /> Add Template
                     </Button>
