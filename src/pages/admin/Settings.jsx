@@ -20,11 +20,15 @@ export default function Settings() {
   })
 
   const settings = data?.data?.data || []
+  console.log("Fetched Settings:", settings)
   const branchSetting = settings.find(s => s.key === 'branch')
   const branches = branchSetting?.values || []
 
   const updateMut = useMutation({
-    mutationFn: ({ id, d }) => optionsService.updateSettings(id, d),
+    mutationFn: ({ id, d }) => {
+      console.log("updateMut Payload - id:", id, "data:", d)
+      return optionsService.updateSettings(id, d)
+    },
     onSuccess: () => {
       qc.invalidateQueries(['settings'])
       setNewBranch('')
@@ -35,24 +39,50 @@ export default function Settings() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to update settings')
   })
 
+  const createMut = useMutation({
+    mutationFn: (d) => {
+      console.log("createMut Payload - data:", d)
+      return optionsService.createSettings(d)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['settings'])
+      setNewBranch('')
+      toast.success('Branch settings created')
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to create settings')
+  })
+
   const handleAdd = (e) => {
     e.preventDefault()
-    if (!newBranch.trim() || !branchSetting) return
+    if (!newBranch.trim()) return
     const updatedValues = [...branches, newBranch.trim().toUpperCase()]
-    updateMut.mutate({ id: branchSetting.id, d: { key: 'branch', values: updatedValues } })
+    
+    if (!branchSetting) {
+      const payload = { key: 'branch', values: updatedValues }
+      console.log("handleAdd Create Payload:", payload)
+      createMut.mutate(payload)
+    } else {
+      const payload = { id: branchSetting.id, d: { key: 'branch', values: updatedValues } }
+      console.log("handleAdd Update Payload:", payload)
+      updateMut.mutate(payload)
+    }
   }
 
   const confirmDelete = () => {
     if (!branchSetting || deleteTarget === null) return
     const updatedValues = branches.filter((_, i) => i !== deleteTarget.index)
-    updateMut.mutate({ id: branchSetting.id, d: { key: 'branch', values: updatedValues } })
+    const payload = { id: branchSetting.id, d: { key: 'branch', values: updatedValues } }
+    console.log("confirmDelete Payload:", payload)
+    updateMut.mutate(payload)
   }
 
   const handleSaveEdit = (index) => {
     if (!editValue.trim() || !branchSetting) return
     const updatedValues = [...branches]
     updatedValues[index] = editValue.trim().toUpperCase()
-    updateMut.mutate({ id: branchSetting.id, d: { key: 'branch', values: updatedValues } })
+    const payload = { id: branchSetting.id, d: { key: 'branch', values: updatedValues } }
+    console.log("handleSaveEdit Payload:", payload)
+    updateMut.mutate(payload)
   }
 
   const startEdit = (index, value) => {
@@ -82,7 +112,7 @@ export default function Settings() {
                   placeholder="e.g., VELLORE" 
                 />
               </div>
-              <Button type="submit" disabled={!newBranch.trim() || updateMut.isPending || !branchSetting}>
+              <Button type="submit" >
                 <Plus className="w-4 h-4" /> Add
               </Button>
             </form>

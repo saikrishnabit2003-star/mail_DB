@@ -19,6 +19,9 @@ export const optionsService = {
   // Get settings
   getSettings: () => api.get('/settings'),
   
+  // Create settings
+  createSettings: (data) => api.post('/settings', data),
+  
   // Update settings
   updateSettings: (id, data) => api.patch(`/settings/${id}`, data),
 }
