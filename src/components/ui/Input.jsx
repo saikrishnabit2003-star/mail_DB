@@ -2,10 +2,23 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 
-export default function Input({ label, error, className, type = 'text', ...props }) {
+export default function Input({ label, error, className, type = 'text', onClick, ...props }) {
   const [showPassword, setShowPassword] = useState(false)
   const isPassword = type === 'password'
   const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
+
+  const handleClick = (e) => {
+    if (e.target.showPicker && ['time', 'date', 'datetime-local', 'month', 'week', 'color'].includes(type)) {
+      try {
+        e.target.showPicker()
+      } catch (err) {
+        // Ignore if picker cannot be shown
+      }
+    }
+    if (onClick) {
+      onClick(e)
+    }
+  }
 
   return (
     <div className="space-y-1.5">
@@ -13,6 +26,7 @@ export default function Input({ label, error, className, type = 'text', ...props
       <div className="relative">
         <input
           type={inputType}
+          onClick={handleClick}
           className={clsx(
             'w-full px-3 py-2 rounded-lg border text-sm transition-colors outline-none',
             error

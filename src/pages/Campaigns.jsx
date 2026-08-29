@@ -414,6 +414,7 @@ export default function Campaigns() {
             )}
             <Input 
               label="Time (Your Local Time)" 
+              placeholder="09:00 AM"
               type="time" 
               value={scheduleForm.scheduledTime} 
               onChange={sf('scheduledTime')}

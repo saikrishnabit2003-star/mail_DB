@@ -173,9 +173,9 @@ export default function AdminDashboard() {
         <h2 className="text-lg font-bold mb-2 text-muted-foreground uppercase tracking-wider text-xs">Core Metrics</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
           <EnhancedStatCard label="Total Uploads" value={d?.totalUploads} icon={Database} color="cyan" subtitle="CSV/Excel files" />
-          <EnhancedStatCard label="Total Profiles" value={d?.totalProfiles} icon={Mail} color="green" subtitle="All profiles" />
-          <EnhancedStatCard label="Active Profiles" value={d?.activeProfiles} icon={UserCheck} color="purple" subtitle="Currently active" />
-          <EnhancedStatCard label="Overall Sent" value={d?.overallSent} icon={Send} color="green" subtitle="All time sent" />
+          <EnhancedStatCard label="Total Profiles" value={d?.totalProfiles} icon={Mail} color="green" subtitle="Overall Profile Counts" />
+          <EnhancedStatCard label="Active Profiles" value={d?.activeProfiles} icon={UserCheck} color="purple" subtitle="Currently Active Profiles" />
+          <EnhancedStatCard label="Overall Sent" value={d?.overallSent} icon={Send} color="green" subtitle="Total Sended Counts" />
           <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent} icon={Send} color="cyan" subtitle="Mon - Sat" />
         </div>
       </motion.div>
