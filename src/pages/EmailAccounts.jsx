@@ -26,6 +26,7 @@ export default function EmailAccounts() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [smtpTestResult, setSmtpTestResult] = useState(null) // null, 'testing', 'success', 'error'
   const [smtpTestMessage, setSmtpTestMessage] = useState('')
+  const [autoFillProfileId, setAutoFillProfileId] = useState('')
 
   // Fetch employees list for admin dropdown
   const { data: employeesData } = useQuery({
@@ -169,11 +170,6 @@ export default function EmailAccounts() {
   })
 
   const handleSave = async () => {
-    const testPassed = await testSmtpBeforeSave()
-    if (!testPassed && modal === 'edit') {
-      return
-    }
-    
     if (isAdmin(user) && modal === 'create' && !form.employeeId && !selectedEmployeeId) {
       return toast.error('Please select an employee for this account')
     }
@@ -232,7 +228,7 @@ export default function EmailAccounts() {
 
       <Table columns={columns} data={accounts} loading={isLoading} emptyMsg="No email accounts yet" />
 
-      <Modal open={modal === 'create' || modal === 'edit'} onClose={() => { setModal(null); setSmtpTestResult(null) }} title={modal === 'create' ? 'Add Email Account' : 'Edit Account'} size="md">
+      <Modal open={modal === 'create' || modal === 'edit'} onClose={() => { setModal(null); setSmtpTestResult(null); setAutoFillProfileId(''); }} title={modal === 'create' ? 'Add Email Account' : 'Edit Account'} size="md">
         <div className="space-y-4">
           {isAdmin(user) && (
             <Select
@@ -253,9 +249,10 @@ export default function EmailAccounts() {
           {(isAdmin(user) ? !!activeEmployeeIdForAccounts : true) && (
             <Select
               label="Profile (Auto-fill Email)"
-              value=""
+              value={autoFillProfileId}
               onChange={(e) => {
                 const pId = e.target.value;
+                setAutoFillProfileId(pId);
                 const selectedProf = availableProfiles.find(p => p.id === pId);
                 if (selectedProf && selectedProf.gmailAccount) {
                   setForm(prev => ({ ...prev, email: selectedProf.gmailAccount }));
@@ -290,9 +287,19 @@ export default function EmailAccounts() {
   Click <a href="https://accounts.google.com/signin/v2/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> to open your Google Account settings. First, enable 2-Step Verification (MFA). Then search for "App Passwords", enter your account password when prompted, and generate an app password. Use the generated password here.
 </p>
           </div>
-          <Select label="Account Type" value={form.accountType || 'gmail_smtp'} onChange={f('accountType')}>
+          <Select label="Account Type" value={form.accountType || 'gmail_smtp'} onChange={(e) => {
+            const val = e.target.value;
+            setForm(prev => {
+              if (val === 'gmail_smtp') {
+                return { ...prev, accountType: val, smtpHost: 'smtp.gmail.com', smtpPort: 587 };
+              } else if (val === 'zoho_smtp') {
+                return { ...prev, accountType: val, smtpHost: 'smtp.zoho.in', smtpPort: 465 };
+              }
+              return { ...prev, accountType: val };
+            });
+          }}>
             <option value="gmail_smtp">Gmail SMTP</option>
-            <option value="smtp">Custom SMTP</option>
+            <option value="zoho_smtp">Zoho SMTP</option>
           </Select>
           <div className="grid grid-cols-2 gap-4">
             <Input label="SMTP Host" value={form.smtpHost || ''} onChange={f('smtpHost')} />
