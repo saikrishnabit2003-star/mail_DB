@@ -70,6 +70,8 @@ export default function Profiles() {
   const [activeTab, setActiveTab] = useState('info') // info, templates, filters, sending
   const [selected, setSelected] = useState(null)
   const [testEmail, setTestEmail] = useState('')
+  const [filterLimitError, setFilterLimitError] = useState('')
+  const [templateErrors, setTemplateErrors] = useState([])
 
   // Fetch employees list for admin dropdown
   const { data: employeesData } = useQuery({
@@ -167,7 +169,10 @@ export default function Profiles() {
     setFilterCount(null) // Reset count when filters change
   }
 
-  const fFilterLimit = (e) => setForm(prev => ({ ...prev, filterLimit: e.target.value === '' ? '' : Number(e.target.value) }))
+  const fFilterLimit = (e) => {
+    setForm(prev => ({ ...prev, filterLimit: e.target.value === '' ? '' : Number(e.target.value) }))
+    setFilterLimitError('')
+  }
 
   const addTemplate = () => {
     if (form.templates.length < 5) {
@@ -278,6 +283,8 @@ export default function Profiles() {
     setActiveTab('info')
     setFilterCount(null)
     setTestEmail('')
+    setFilterLimitError('')
+    setTemplateErrors([])
     if (profile) {
       setSelected(profile)
       setForm(formatProfileForEdit(profile))
@@ -294,9 +301,28 @@ export default function Profiles() {
       return toast.error('Please select an employee for this profile')
     }
 
+    let hasTemplateError = false;
+    const newTemplateErrors = form.templates.map((t, idx) => {
+      const errs = {};
+      if (!t.name || !t.name.trim()) errs.name = 'Name is required';
+      if (!t.subject || !t.subject.trim()) errs.subject = 'Subject is required';
+      const cleanBody = t.body ? t.body.replace(/<[^>]*>?/gm, '').trim() : '';
+      if (!cleanBody) errs.body = 'Body is required';
+      
+      if (errs.name || errs.subject || errs.body) hasTemplateError = true;
+      return errs;
+    });
+
+    if (hasTemplateError) {
+      setTemplateErrors(newTemplateErrors);
+      setActiveTab('templates');
+      return toast.error('Please fill in all template fields');
+    }
+
     const limit = parseInt(form.filterLimit, 10);
     if (!form.filterLimit || isNaN(limit) || limit < 1 || limit > 600) {
       setActiveTab('filters')
+      setFilterLimitError('Filter Limit is required and must be between 1 and 600')
       return toast.error('Filter Limit is required and must be between 1 and 600')
     }
 
@@ -515,24 +541,50 @@ export default function Profiles() {
                   <Input
                     placeholder="Template name (e.g., Aggressive, Friendly)"
                     value={t.name}
-                    onChange={(e) => updateTemplate(idx, 'name', e.target.value)}
+                    onChange={(e) => {
+                      updateTemplate(idx, 'name', e.target.value);
+                      setTemplateErrors(prev => {
+                        const newErrs = [...prev];
+                        if (newErrs[idx]) newErrs[idx] = { ...newErrs[idx], name: undefined };
+                        return newErrs;
+                      });
+                    }}
+                    error={templateErrors[idx]?.name}
                   />
                   <Input
                     placeholder="Subject line"
                     value={t.subject}
-                    onChange={(e) => updateTemplate(idx, 'subject', e.target.value)}
+                    onChange={(e) => {
+                      updateTemplate(idx, 'subject', e.target.value);
+                      setTemplateErrors(prev => {
+                        const newErrs = [...prev];
+                        if (newErrs[idx]) newErrs[idx] = { ...newErrs[idx], subject: undefined };
+                        return newErrs;
+                      });
+                    }}
+                    error={templateErrors[idx]?.subject}
                   />
-                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                    {!!modal && (
-                      <ReactQuill
-                        theme="snow"
-                        modules={quillModules}
-                        value={t.body}
-                        onChange={(value) => updateTemplate(idx, 'body', value)}
-                        placeholder="Email body content"
-                        className="text-sm [&_.ql-container]:min-h-[140px] [&_.ql-editor]:min-h-[140px] [&_.ql-editor]:text-sm [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-container]:border-0"
-                      />
-                    )}
+                  <div className="space-y-1.5">
+                    <div className={`bg-white rounded-lg border overflow-hidden ${templateErrors[idx]?.body ? 'border-red-400 focus-within:ring-2 focus-within:ring-red-100' : 'border-gray-200'}`}>
+                      {!!modal && (
+                        <ReactQuill
+                          theme="snow"
+                          modules={quillModules}
+                          value={t.body}
+                          onChange={(value) => {
+                            updateTemplate(idx, 'body', value);
+                            setTemplateErrors(prev => {
+                              const newErrs = [...prev];
+                              if (newErrs[idx]) newErrs[idx] = { ...newErrs[idx], body: undefined };
+                              return newErrs;
+                            });
+                          }}
+                          placeholder="Email body content"
+                          className="text-sm [&_.ql-container]:min-h-[140px] [&_.ql-editor]:min-h-[140px] [&_.ql-editor]:text-sm [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-container]:border-0"
+                        />
+                      )}
+                    </div>
+                    {templateErrors[idx]?.body && <p className="text-xs text-red-500">{templateErrors[idx].body}</p>}
                   </div>
                 </div>
               ))}
@@ -582,20 +634,20 @@ export default function Profiles() {
                   options={(dropdownOptions.domains || []).map(d => ({ label: d, value: d }))}
                   placeholder="Select domains..."
                 />
-                <MultiSelect
+                {/* <MultiSelect
                   label="Domain Group"
                   value={form.filters?.domainGroup || []}
                   onChange={val => fFilterMulti('domainGroup')(val)}
                   options={(dropdownOptions.domainGroups || []).map(d => ({ label: d, value: d }))}
                   placeholder="Select domain groups..."
-                />
-                <MultiSelect
+                /> */}
+                {/* <MultiSelect
                   label="Industries"
                   value={form.filters?.industry || []}
                   onChange={val => fFilterMulti('industry')(val)}
                   options={(dropdownOptions.industries || []).map(i => ({ label: i, value: i }))}
                   placeholder="Select industries..."
-                />
+                /> */}
                 <MultiSelect
                   label="Universities"
                   value={form.filters?.university || []}
@@ -603,10 +655,7 @@ export default function Profiles() {
                   options={(dropdownOptions.university || []).map(c => ({ label: c, value: c }))}
                   placeholder="Select universities..."
                 />
-                
               </div>
-
-             
 
               <Input
                 label="Filter Limit"
@@ -617,7 +666,7 @@ export default function Profiles() {
                 min="1"
                 max="600"
                 required
-                error={(form.filterLimit !== '' && form.filterLimit !== undefined && (parseInt(form.filterLimit, 10) < 1 || parseInt(form.filterLimit, 10) > 600)) ? "Limit must be between 1 and 600" : undefined}
+                error={filterLimitError || ((form.filterLimit !== '' && form.filterLimit !== undefined && (parseInt(form.filterLimit, 10) < 1 || parseInt(form.filterLimit, 10) > 600)) ? "Limit must be between 1 and 600" : undefined)}
               />
 
               <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer mt-2 bg-gray-50 p-3 rounded-lg border border-gray-100">

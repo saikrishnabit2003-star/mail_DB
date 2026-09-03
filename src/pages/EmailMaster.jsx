@@ -719,7 +719,7 @@ export default function EmailMaster() {
                 ]}
                 placeholder="All Domains"
               />
-              <SearchableSelect
+              {/* <SearchableSelect
                 label="Industry"
                 value={industryFilter}
                 onChange={val => { setIndustryFilter(val); setPage(1) }}
@@ -728,7 +728,7 @@ export default function EmailMaster() {
                   ...industries.map(i => ({ label: i, value: i }))
                 ]}
                 placeholder="All Industries"
-              />
+              /> */}
               <SearchableSelect
                 label="Uploader"
                 value={uploaderFilter}
