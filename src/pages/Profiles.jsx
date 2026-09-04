@@ -70,7 +70,7 @@ export default function Profiles() {
   const [activeTab, setActiveTab] = useState('info') // info, templates, filters, sending
   const [selected, setSelected] = useState(null)
   const [testEmail, setTestEmail] = useState('')
-  const [filterLimitError, setFilterLimitError] = useState('')
+  const [filterLimitError, setFilterLimitError] = useState(null)
   const [templateErrors, setTemplateErrors] = useState([])
 
   // Fetch employees list for admin dropdown
@@ -170,7 +170,7 @@ export default function Profiles() {
   }
 
   const fFilterLimit = (e) => {
-    setForm(prev => ({ ...prev, filterLimit: e.target.value === '' ? '' : Number(e.target.value) }))
+    setForm(prev => ({ ...prev, filterLimit: e.target.value === '' ? null : Number(e.target.value) }))
     setFilterLimitError('')
   }
 
@@ -319,11 +319,12 @@ export default function Profiles() {
       return toast.error('Please fill in all template fields');
     }
 
-    const limit = parseInt(form.filterLimit, 10);
-    if (!form.filterLimit || isNaN(limit) || limit < 1 || limit > 600) {
+    const limit = form.filterLimit ? parseInt(form.filterLimit, 10) : null;
+    console.log(limit);
+    if (limit !== null && (isNaN(limit) || limit < 1)) {
       setActiveTab('filters')
-      setFilterLimitError('Filter Limit is required and must be between 1 and 600')
-      return toast.error('Filter Limit is required and must be between 1 and 600')
+      setFilterLimitError('Filter Limit must be at least 1')
+      return toast.error('Filter Limit must be at least 1')
     }
 
     modal === 'create' ? createMut.mutate(form) : updateMut.mutate({ id: selected.id, d: form })
@@ -663,10 +664,8 @@ export default function Profiles() {
                 value={form.filterLimit}
                 onChange={fFilterLimit}
                 placeholder="Max emails to fetch from filtered results"
-                min="1"
-                max="600"
-                required
-                error={filterLimitError || ((form.filterLimit !== '' && form.filterLimit !== undefined && (parseInt(form.filterLimit, 10) < 1 || parseInt(form.filterLimit, 10) > 600)) ? "Limit must be between 1 and 600" : undefined)}
+                
+              // error={filterLimitError || ((form.filterLimit !== '' && form.filterLimit !== undefined && (parseInt(form.filterLimit, 10) < 1)) ? "Limit must be at least 1" : undefined)}
               />
 
               <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer mt-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
