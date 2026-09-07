@@ -183,7 +183,7 @@ export default function Campaigns() {
               onChange={e => setSelectedEmployeeId(e.target.value || null)}
               className="w-48"
             >
-              <option value="">All User's</option>
+              <option value="">Select Employee...</option>
               {employees.map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>
               ))}

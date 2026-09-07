@@ -63,6 +63,7 @@ export default function Users() {
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState({})
+  const [formErrors, setFormErrors] = useState({})
   const [pwForm, setPwForm] = useState({ old_password: '', new_password: '' })
   const [activeTab, setActiveTab] = useState('employee')
   const [selectedIds, setSelectedIds] = useState([])
@@ -157,6 +158,20 @@ export default function Users() {
     mutationFn: () => usersService.migrateBranch(),
     onSuccess: (r) => { qc.invalidateQueries(['users']); toast.success(r.data?.data?.message || 'Migration done') },
   })
+
+  const handleCreateSubmit = () => {
+    const errors = {};
+    if (!form.name || !form.name.trim()) errors.name = 'Name is required';
+    if (!form.email || !form.email.trim()) errors.email = 'Email is required';
+    if (!form.password) errors.password = 'Password is required and min 8 characters';
+    else if (form.password.length < 8) errors.password = 'Password must be at least 8 characters';
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    createMut.mutate(form);
+  }
 
   const openEdit = (user) => {
     setSelected(user)
@@ -329,7 +344,7 @@ export default function Users() {
               <Trash2 className="w-4 h-4" /> Delete Selected
             </Button>
           )}
-          <Button size="sm" onClick={() => { setForm({ name: '', email: '', password: '', role: 'employee', branch: 'Vellore', assignedToAdmin: '' }); setModal('create') }}>
+          <Button size="sm" onClick={() => { setForm({ name: '', email: '', password: '', role: 'employee', branch: 'Vellore', assignedToAdmin: '' }); setFormErrors({}); setModal('create') }}>
             <Plus className="w-4 h-4" /> Add User
           </Button>
         </div>
@@ -340,9 +355,9 @@ export default function Users() {
       {/* Create modal */}
       <Modal open={modal === 'create'} onClose={() => setModal(null)} title="Create User">
         <div className="space-y-4">
-          <Input label="Name" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
-          <Input label="Email" type="email" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="email@example.com" />
-          <Input label="Password" type="password" value={form.password || ''} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Min 8 characters" />
+          <Input label="Name" error={formErrors.name} value={form.name || ''} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFormErrors(err => ({ ...err, name: '' })); }} placeholder="Full name" required />
+          <Input label="Email" type="email" error={formErrors.email} value={form.email || ''} onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setFormErrors(err => ({ ...err, email: '' })); }} placeholder="email@example.com" required />
+          <Input label="Password" type="password" error={formErrors.password} value={form.password || ''} onChange={e => { setForm(f => ({ ...f, password: e.target.value })); setFormErrors(err => ({ ...err, password: '' })); }} placeholder="Min 8 characters" minLength={8} required />
           <Select label="Role" value={form.role || 'employee'} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
             <option value="employee">Employee</option>
             <option value="admin">Admin</option>
@@ -369,7 +384,7 @@ export default function Users() {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
-            <Button onClick={() => createMut.mutate(form)} loading={createMut.isPending}>Create User</Button>
+            <Button onClick={handleCreateSubmit} loading={createMut.isPending}>Create User</Button>
           </div>
         </div>
       </Modal>
