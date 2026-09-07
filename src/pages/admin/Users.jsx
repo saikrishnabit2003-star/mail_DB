@@ -360,7 +360,7 @@ export default function Users() {
           <Input label="Password" type="password" error={formErrors.password} value={form.password || ''} onChange={e => { setForm(f => ({ ...f, password: e.target.value })); setFormErrors(err => ({ ...err, password: '' })); }} placeholder="Min 8 characters" minLength={8} required />
           <Select label="Role" value={form.role || 'employee'} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
             <option value="employee">Employee</option>
-            <option value="admin">Admin</option>
+            {isSuperAdmin && <option value="admin">Admin</option>}
             {isSuperAdmin && <option value="super_admin">Super Admin</option>}
           </Select>
           <Select label="Branch" value={form.branch || ''} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}>
