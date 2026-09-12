@@ -176,7 +176,7 @@ export default function AdminDashboard() {
           <EnhancedStatCard label="Total Profiles" value={d?.totalProfiles} icon={Mail} color="green" subtitle="Overall Profile Counts" />
           <EnhancedStatCard label="Active Profiles" value={d?.activeProfiles} icon={UserCheck} color="purple" subtitle="Currently Active Profiles" />
           <EnhancedStatCard label="Overall Sent" value={d?.overallSent} icon={Send} color="green" subtitle="Total Sended Counts" />
-          <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent} icon={Send} color="cyan" subtitle="Mon - Sat" />
+          <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent} icon={Send} color="cyan" subtitle="Mon - Sun" />
         </div>
       </motion.div>
 

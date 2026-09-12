@@ -29,7 +29,7 @@ export default function ProfileEmails() {
     queryFn: () => optionsService.getEmployees(),
     enabled: isAdmin(user),
   })
-  const employees = employeesData?.data?.data || []
+  const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
 
   const { data: profilesData } = useQuery({
     queryKey: ['profiles', selectedEmployeeId],

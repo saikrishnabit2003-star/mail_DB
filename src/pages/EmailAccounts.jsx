@@ -40,7 +40,7 @@ export default function EmailAccounts() {
     queryFn: () => emailAccountsService.list(selectedEmployeeId)
   })
   const accounts = data?.data?.data || []
-  const employees = employeesData?.data?.data || []
+  const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
 
   const activeEmployeeIdForAccounts = isAdmin(user)
     ? (form.employeeId || selectedEmployeeId)

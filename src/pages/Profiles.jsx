@@ -85,7 +85,7 @@ export default function Profiles() {
     queryFn: () => profilesService.list(selectedEmployeeId || undefined),
   })
   const profiles = data?.data?.data || []
-  const employees = employeesData?.data?.data || []
+  const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
 
   // Determine which employee's email accounts to show in the gmailAccount dropdown:
   // - For admin: use selectedEmployeeId (the employee selected in the filter bar)

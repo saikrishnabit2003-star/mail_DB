@@ -74,7 +74,7 @@ export default function Campaigns() {
   const rawCampaigns = data?.data?.data
   const campaigns = rawCampaigns?.data ?? (Array.isArray(rawCampaigns) ? rawCampaigns : [])
   const profiles  = profilesData?.data?.data || []
-  const employees = employeesData?.data?.data || []
+  const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
 
   const startMut = useMutation({
     mutationFn: (d) => campaignsService.start(d, selectedEmployeeId),

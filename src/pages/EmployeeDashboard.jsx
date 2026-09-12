@@ -98,7 +98,7 @@ export default function EmployeeDashboard() {
           <StatCard label="Profiles" value={d?.activeProfiles || 0} sub="Total profiles" icon={Users} color="blue" variant="outline" />
           
           <StatCard label="Overall Sent" value={d?.overallSent || 0} sub="All time sent" icon={Send} color="green" variant="solid" />
-          <StatCard label="Current Week Sent" value={d?.currentWeekSent || 0} sub="Mon - Sat" icon={Send} color="cyan" variant="solid" />
+          <StatCard label="Current Week Sent" value={d?.currentWeekSent || 0} sub="Mon - Sun" icon={Send} color="cyan" variant="solid" />
           <StatCard label="Campaigns" value={d?.totalCampaigns || 0} sub="Total created" icon={TrendingUp} color="indigo" variant="solid" onDoubleClick={() => nav("/campaigns")} />
           <StatCard label="Running" value={d?.runningCampaigns || 0} sub="Active campaigns" icon={Play} color="pink" variant="solid" />
         </div>
