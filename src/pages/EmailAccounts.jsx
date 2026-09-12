@@ -274,6 +274,7 @@ export default function EmailAccounts() {
             value={form.email || ''} 
             onChange={f('email')}
             placeholder="you@gmail.com" 
+            autoComplete="new-password"
           />
           <div className="space-y-1">
             <Input 
@@ -282,6 +283,7 @@ export default function EmailAccounts() {
               value={form.appPassword || ''} 
               onChange={f('appPassword')} 
               placeholder={modal === 'create' ? 'Gmail app password' : 'Enter new password if changing'} 
+              autoComplete="new-password"
             />
             <p className="text-xs text-gray-500">
   Click <a href="https://accounts.google.com/signin/v2/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> to open your Google Account settings. First, enable 2-Step Verification (MFA). Then search for "App Passwords", enter your account password when prompted, and generate an app password. Use the generated password here.
@@ -292,14 +294,14 @@ export default function EmailAccounts() {
             setForm(prev => {
               if (val === 'gmail_smtp') {
                 return { ...prev, accountType: val, smtpHost: 'smtp.gmail.com', smtpPort: 587 };
-              } else if (val === 'zoho_smtp') {
+              } else if (val === 'smtp') {
                 return { ...prev, accountType: val, smtpHost: 'smtp.zoho.in', smtpPort: 465 };
               }
               return { ...prev, accountType: val };
             });
           }}>
             <option value="gmail_smtp">Gmail SMTP</option>
-            <option value="zoho_smtp">Zoho SMTP</option>
+            <option value="smtp">Zoho SMTP</option>
           </Select>
           <div className="grid grid-cols-2 gap-4">
             <Input label="SMTP Host" value={form.smtpHost || ''} onChange={f('smtpHost')} />
