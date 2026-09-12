@@ -117,7 +117,7 @@ export default function ProfileEmails() {
 
           {/* Step 1: Employee selector — only for admin/super_admin */}
           {isAdmin(user) && (
-            <div className="min-w-52">
+            <div className="min-w-72">
               <Select
                 label="Step 1 — Select Employee"
                 value={selectedEmployeeId || ''}
@@ -137,7 +137,7 @@ export default function ProfileEmails() {
           )}
 
           {/* Step 2: Profile selector — filtered by selected employee for admin */}
-          <div className="min-w-52">
+          <div className="min-w-72">
             <Select
               label={isAdmin(user) ? 'Step 2 — Select Profile' : 'Select Profile'}
               value={selectedProfile}

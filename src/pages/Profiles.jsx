@@ -339,7 +339,7 @@ export default function Profiles() {
             <Select
               value={selectedEmployeeId || ''}
               onChange={e => setSelectedEmployeeId(e.target.value || null)}
-              className="w-48"
+              className="w-72"
             >
               <option value="">Select Employee...</option>
               {employees.map(emp => (

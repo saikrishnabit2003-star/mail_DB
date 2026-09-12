@@ -14,6 +14,7 @@ export default function Header({ title }) {
   const qc = useQueryClient()
   const [dropOpen, setDropOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [prevNotifIds, setPrevNotifIds] = useState(null)
   
   const notifRef = useRef(null)
   const dropRef = useRef(null)
@@ -39,6 +40,41 @@ export default function Header({ title }) {
 
   const notifs = notifData?.data?.data || []
   const unread = notifs.filter(n => !n.isRead).length || 0
+
+  useEffect(() => {
+    if (notifs) {
+      if (prevNotifIds !== null) {
+        const newNotifs = notifs.filter(n => !prevNotifIds.has(n.id) && !n.isRead)
+        if (newNotifs.length > 0) {
+          // Only show the latest 1 notification
+          const latest = newNotifs[0]
+          let toastId
+          toastId = toast.custom((t) => (
+            <div 
+              className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-yellow-50 border border-yellow-200 shadow-lg rounded-xl pointer-events-auto flex relative p-4`}
+            >
+              <div className="flex-1 pr-8">
+                <p className="text-sm font-medium text-gray-800 leading-relaxed line-clamp-3">
+                  {latest.message || latest.title}
+                </p>
+                <p className="text-[11px] text-gray-400 mt-2 font-medium">
+                  {latest.createdAt ? format(new Date(latest.createdAt), 'MMM d, yyyy, h:mm a') : 'Just now'}
+                </p>
+              </div>
+              <button
+                onClick={() => toast.dismiss(toastId)}
+                className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-yellow-100 transition-colors text-xs font-bold"
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+          ), { duration: 3000, position: 'top-right' })
+        }
+      }
+      setPrevNotifIds(new Set(notifs.map(n => n.id)))
+    }
+  }, [notifs])
 
   const readAllMut = useMutation({
     mutationFn: () => notificationsService.readAll(),

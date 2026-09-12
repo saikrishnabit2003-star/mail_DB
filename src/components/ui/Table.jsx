@@ -1,6 +1,6 @@
 import { ChevronUp, ChevronDown } from 'lucide-react'
 
-export default function Table({ columns, data, loading, emptyMsg = 'No data found', wrapperClassName = "overflow-y-auto max-h-[500px] rounded-xl border border-gray-100 bg-white shadow-sm relative" }) {
+export default function Table({ columns, data, loading, emptyMsg = 'No data found', wrapperClassName = "overflow-y-auto max-h-[75vh] rounded-xl border border-gray-100 bg-white shadow-sm relative" }) {
   return (
     <div className={wrapperClassName}>
       <table className="w-full text-sm">

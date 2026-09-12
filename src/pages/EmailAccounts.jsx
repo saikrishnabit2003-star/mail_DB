@@ -211,8 +211,8 @@ export default function EmailAccounts() {
           {isAdmin(user) && (
             <Select 
               value={selectedEmployeeId || ''} 
-              onChange={e => setSelectedEmployeeId(e.target.value || null)}
-              className="w-48"
+              onChange={(e) => setSelectedEmployeeId(e.target.value || null)} 
+              className="w-72"
             >
               <option value="">Select Employee...</option>
               {employees.map(emp => (

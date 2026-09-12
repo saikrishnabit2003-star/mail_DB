@@ -13,7 +13,7 @@ const adminNav = [
   { to: '/admin/users',       label: 'Users',           icon: Users },
   { to: '/email-master',      label: 'Email Master',    icon: Database },
   { to: '/profiles',          label: 'Profiles',        icon: Briefcase },
-  { to: '/email-accounts',    label: 'Email Accounts',  icon: Mail },
+  { to: '/email-accounts',    label: 'App Password',  icon: Mail },
   { to: '/campaigns',         label: 'Campaigns',       icon: Send },
   { to: '/profile-emails',    label: 'Profile Emails',  icon: ListChecks },
 ]
