@@ -62,7 +62,7 @@ export default function Header({ title }) {
                 </p>
               </div>
               <button
-                onClick={() => toast.dismiss(toastId)}
+                onClick={() => toast.dismiss(t.id)}
                 className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-yellow-100 transition-colors text-xs font-bold"
                 title="Close"
               >

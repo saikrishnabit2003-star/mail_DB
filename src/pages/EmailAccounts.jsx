@@ -207,7 +207,7 @@ export default function EmailAccounts() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">
-          <p className="text-sm text-gray-500">{accounts.length} accounts</p>
+          <p className="text-sm text-gray-500">{accounts.length}accounts</p>
           {isAdmin(user) && (
             <Select 
               value={selectedEmployeeId || ''} 
@@ -285,9 +285,15 @@ export default function EmailAccounts() {
               placeholder={modal === 'create' ? 'Gmail app password' : 'Enter new password if changing'} 
               autoComplete="new-password"
             />
-            <p className="text-xs text-gray-500">
-  Click <a href="https://accounts.google.com/signin/v2/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> to open your Google Account settings. First, enable 2-Step Verification (MFA). Then search for "App Passwords", enter your account password when prompted, and generate an app password. Use the generated password here.
-</p>
+            {form.accountType === 'smtp' ? (
+              <p className="text-xs text-gray-500">
+                Click <a href="https://mail.zoho.in/zm/#mail/folder/inbox" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> → Open My Account → First enable 2-Step Verification (MFA) → Open Security → App Passwords → Click Generate New Password → Enter an app name → Click Generate → Copy the generated 12-character App Password and paste it here.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Click <a href="https://accounts.google.com/signin/v2/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> → Open your Google Account settings → First enable 2-Step Verification (MFA) → Search for "App Passwords" → Enter your account password when prompted → Generate an App Password → Copy the generated password → Paste it here.
+              </p>
+            )}
           </div>
           <Select label="Account Type" value={form.accountType || 'gmail_smtp'} onChange={(e) => {
             const val = e.target.value;

@@ -55,6 +55,7 @@ export default function Campaigns() {
     recurrenceDays: [],  // [0-6] for Mon-Sun
     recurrenceEndDate: '',  // YYYY-MM-DD
   })
+  const [scheduleErrors, setScheduleErrors] = useState({})
 
   const { data, isLoading } = useQuery({
     queryKey: ['campaigns', selectedEmployeeId],
@@ -117,6 +118,7 @@ export default function Campaigns() {
         recurrenceDays: [],
         recurrenceEndDate: ''
       }) 
+      setScheduleErrors({})
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to schedule'),
   })
@@ -135,10 +137,16 @@ export default function Campaigns() {
   }
 
   const handleSchedule = () => {
-    if (!scheduleForm.campaignName || !scheduleForm.profileId) return toast.error('Campaign name and profile required')
-    
-    // Always require time
-    if (!scheduleForm.scheduledTime) return toast.error('Time is required')
+    const errs = {}
+    if (!scheduleForm.campaignName) errs.campaignName = "Campaign name is required"
+    if (!scheduleForm.profileId) errs.profileId = "Profile is required"
+    if (!scheduleForm.scheduledTime) errs.scheduledTime = "Time is required"
+
+    if (Object.keys(errs).length > 0) {
+      setScheduleErrors(errs)
+      return toast.error('Please fill out all required fields')
+    }
+    setScheduleErrors({})
     
     // Date required only for 'once' recurrence type
     if (scheduleForm.recurrenceType === 'once' && !scheduleForm.scheduledFor) {
@@ -200,6 +208,7 @@ export default function Campaigns() {
               campaignName: '', profileId: '', scheduledFor: '', scheduledTime: '', dailyLimit: '', employeeId: '', maxRetries: 3, 
               recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '' 
             }); 
+            setScheduleErrors({});
             setScheduleModal(true) 
           }}>
             <Calendar className="w-4 h-4" /> Schedule Campaign
@@ -381,7 +390,9 @@ export default function Campaigns() {
             label="Campaign Name" 
             value={scheduleForm.campaignName} 
             onChange={sf('campaignName')} 
-            placeholder="e.g. Future Campaign" 
+            placeholder="e.g. Future Campaign"
+            error={scheduleErrors.campaignName}
+            required
           />
           {isAdmin(user) && (
             <Select label="Employee" value={scheduleForm.employeeId || ''} onChange={sf('employeeId')}>
@@ -389,7 +400,14 @@ export default function Campaigns() {
               {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>)}
             </Select>
           )}
-          <Select label="Profile" value={scheduleForm.profileId} onChange={sf('profileId')} disabled={isAdmin(user) && !scheduleForm.employeeId}>
+          <Select 
+            label="Profile" 
+            value={scheduleForm.profileId} 
+            onChange={sf('profileId')} 
+            disabled={isAdmin(user) && !scheduleForm.employeeId} 
+            error={scheduleErrors.profileId}
+            required
+          >
             {isAdmin(user) && !scheduleForm.employeeId ? (
               <option value="">Select an employee first...</option>
             ) : (
@@ -419,6 +437,8 @@ export default function Campaigns() {
               value={scheduleForm.scheduledTime} 
               onChange={sf('scheduledTime')}
               className={scheduleForm.recurrenceType === 'once' ? '' : 'col-span-2'}
+              error={scheduleErrors.scheduledTime}
+              required
             />
           </div>
 

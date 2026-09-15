@@ -10,8 +10,9 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
-import { ListChecks, RefreshCw, RotateCcw, Trash2, Zap } from 'lucide-react'
+import { Download, ListChecks, RefreshCw, RotateCcw, Trash2, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
+import * as XLSX from 'xlsx'
 
 export default function ProfileEmails() {
   const { user, isAdmin } = useAuth()
@@ -70,6 +71,30 @@ export default function ProfileEmails() {
     mutationFn: (id) => profileEmailsService.deleteRecord(id),
     onSuccess: () => { qc.invalidateQueries(['profile-emails', selectedProfile]); toast.success('Deleted') },
   })
+
+  const downloadFailedEmails = () => {
+    const failedEmails = emails.filter(e => e.sendStatus?.toLowerCase() === 'failed')
+    
+    if (failedEmails.length === 0) {
+      toast.error('No failed emails to download')
+      return
+    }
+
+    const dataToExport = failedEmails.map((e, idx) => ({
+      'S.No': idx + 1,
+      'Name': e.fullName || '—',
+      'Email': e.email,
+      'University': e.university || '—',
+      'Status': e.sendStatus,
+      'Sent At': e.sentDate ? new Date(e.sentDate).toLocaleString() : '—',
+      'Retries': e.retryCount ?? 0
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Failed Emails")
+    XLSX.writeFile(wb, `Failed_Emails_${selectedProfile}.xlsx`)
+  }
 
   const columns = [
     { 
@@ -160,6 +185,9 @@ export default function ProfileEmails() {
               </Button>
               <Button variant="secondary" size="sm" onClick={() => retryMut.mutate()} loading={retryMut.isPending}>
                 <RotateCcw className="w-4 h-4" /> Retry Failed
+              </Button>
+              <Button variant="secondary" size="sm" onClick={downloadFailedEmails}>
+                <Download className="w-4 h-4" /> Download Failed
               </Button>
               <Button variant="danger" size="sm" onClick={() => setClearModal(true)} loading={clearMut.isPending}>
                 <Trash2 className="w-4 h-4" /> Clear All
