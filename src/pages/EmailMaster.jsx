@@ -140,6 +140,8 @@ export default function EmailMaster() {
       setUploadStep(3)
       toast.success(r.data?.message || 'Upload successful')
       if (fileRef.current) fileRef.current.value = ''
+
+
     },
     onError: (e) => {
       toast.error(e.response?.data?.message || 'Upload failed')
@@ -511,7 +513,35 @@ export default function EmailMaster() {
                     <p className="text-2xl font-bold text-red-900">{uploadSummary.data?.failed || 0}</p>
                   </div>
                 </div>
-                <Button onClick={() => { setUploadStep(1); setUploadSummary(null); setUploadedFile(null); setWorkbook(null); setMailSourceUpload(''); }}>Start New Upload</Button>
+                <div className="flex gap-3">
+                  <Button onClick={() => { setUploadStep(1); setUploadSummary(null); setUploadedFile(null); setWorkbook(null); setMailSourceUpload(''); }}>Start New Upload</Button>
+                  {(uploadSummary?.failedEmails?.length > 0 || uploadSummary?.data?.failedEmails?.length > 0) && (
+                    <Button variant="secondary" onClick={() => {
+                      try {
+                        const emailsToDownload = uploadSummary.failedEmails || uploadSummary.data.failedEmails;
+                        const formattedEmails = emailsToDownload.map(email => {
+                          const formattedEmail = { ...email };
+                          for (const key in formattedEmail) {
+                            if (Array.isArray(formattedEmail[key])) {
+                              formattedEmail[key] = formattedEmail[key].join(',');
+                            }
+                          }
+                          return formattedEmail;
+                        });
+                        const ws = XLSX.utils.json_to_sheet(formattedEmails)
+                        const wb = XLSX.utils.book_new()
+                        console.log("ws :",formattedEmails)
+                        XLSX.utils.book_append_sheet(wb, ws, "Failed Emails")
+                        XLSX.writeFile(wb, "uploaded_failed_mails_list.xlsx")
+                      } catch (err) {
+                        console.error("Error generating failed emails excel:", err)
+                        toast.error("Failed to generate Excel file")
+                      }
+                    }}>
+                      <Download className="w-4 h-4" /> Download Failed Emails
+                    </Button>
+                  )}
+                </div>
               </>
             )}
           </div>

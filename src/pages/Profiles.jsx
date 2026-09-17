@@ -449,7 +449,7 @@ export default function Profiles() {
               )}
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Profile Name" value={form.profileName || ''} onChange={f('profileName')} placeholder="e.g. USA Tech CEOs" />
-                {availableEmailAccounts.length > 0 ? (
+                {/* {availableEmailAccounts.length > 0 ? (
                   <Select
                     label="Gmail / SMTP Account"
                     value={form.gmailAccount || ''}
@@ -462,7 +462,7 @@ export default function Profiles() {
                       </option>
                     ))}
                   </Select>
-                ) : (
+                ) : ( */}
                   <div>
                     <Input
                       label="Gmail / SMTP Account"
@@ -476,7 +476,7 @@ export default function Profiles() {
                         : '⚠ No active email accounts found — add one in Email Accounts first'}
                     </p>
                   </div>
-                )}
+                {/* )} */}
               </div>
 
               {/* Attachments */}
