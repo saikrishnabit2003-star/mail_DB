@@ -10,8 +10,10 @@ import DateRangePicker from '../components/ui/DateRangePicker'
 import { Send, CheckCircle2, Edit, Trash2, Search, ChevronLeft, ChevronRight, X, Filter, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
+import { useAuth } from '../context/AuthContext'
 
 export default function ProfileReplies() {
+  const { user } = useAuth()
   const qc = useQueryClient()
   const [formData, setFormData] = useState({
     email: '',
@@ -212,14 +214,16 @@ export default function ProfileReplies() {
           >
             <Edit className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => handleDelete(row)}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-            title="Remove Reply"
-            disabled={removeReplyMut.isPending}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {user?.role !== 'employee' && (
+            <button
+              onClick={() => handleDelete(row)}
+              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+              title="Remove Reply"
+              disabled={removeReplyMut.isPending}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )
     }

@@ -209,7 +209,10 @@ export default function Settings() {
                     type="number"
                     value={cooldownValue} 
                     onChange={e => setCooldownValue(e.target.value)} 
-                    placeholder="e.g., 30" 
+                    placeholder="e.g., 20" 
+                    min={2}
+                    max={60}
+                    required
                   />
                 </div>
                 <Button type="submit" loading={updateMut.isPending || createMut.isPending}>
