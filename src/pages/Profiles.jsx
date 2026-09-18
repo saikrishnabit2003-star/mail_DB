@@ -448,7 +448,7 @@ export default function Profiles() {
                 </Select>
               )}
               <div className="grid grid-cols-2 gap-4">
-                <Input label="Profile Name" value={form.profileName || ''} onChange={f('profileName')} placeholder="e.g. USA Tech CEOs" />
+                <Input label="Profile Name" value={form.profileName || ''} onChange={f('profileName')} placeholder="e.g. Empoyee Name - Profile Name" />
                 {/* {availableEmailAccounts.length > 0 ? (
                   <Select
                     label="Gmail / SMTP Account"

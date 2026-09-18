@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   LayoutDashboard, Users, Mail, Briefcase,
   Send, FileText, Settings, Database, ListChecks,
-  ChevronRight, Zap
+  ChevronRight, Zap, MessageSquare
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '../ui/Button'

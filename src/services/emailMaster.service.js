@@ -20,6 +20,9 @@ export const emailMasterService = {
   getUploaderStats: () => api.get('/email-master/stats/uploaders'),
   deleteEmail: (id) => api.delete(`/email-master/${id}`),
   getDropdownOptions: () => api.get('/email-master/dropdown-options'),
+  markReply: (data) => api.post('/email-master/replies', data),
+  updateReply: (id, data) => api.patch(`/email-master/replies/${id}`, data),
+  listReplies: (params) => api.get('/email-master/replies', { params }),
 }
 
 

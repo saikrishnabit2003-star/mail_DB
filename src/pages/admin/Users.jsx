@@ -353,7 +353,7 @@ export default function Users() {
       <Table columns={displayColumns} data={filteredUsers} loading={isLoading} emptyMsg="No users found" />
 
       {/* Create modal */}
-      <Modal open={modal === 'create'} onClose={() => setModal(null)} title="Create User">
+      <Modal open={modal === 'create'} onClose={() => setModal(null)} title="Create User" overflowVisible>
         <div className="space-y-4">
           <Input label="Name" error={formErrors.name} value={form.name || ''} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFormErrors(err => ({ ...err, name: '' })); }} placeholder="Full name" required />
           <Input label="Email" type="email" error={formErrors.email} value={form.email || ''} onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setFormErrors(err => ({ ...err, email: '' })); }} placeholder="email@example.com" autoComplete="new-password" required />
@@ -390,7 +390,7 @@ export default function Users() {
       </Modal>
 
       {/* Edit modal */}
-      <Modal open={modal === 'edit'} onClose={() => setModal(null)} title="Edit User">
+      <Modal open={modal === 'edit'} onClose={() => setModal(null)} title="Edit User" overflowVisible>
         <div className="space-y-4">
           <Input label="Name" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <Select label="Status" value={form.status || 'active'} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { optionsService } from '../../services/options.service'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
@@ -14,40 +14,44 @@ export default function Settings() {
   const [editValue, setEditValue] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
 
+  const [cooldownValue, setCooldownValue] = useState('')
+
   const { data, isLoading } = useQuery({
     queryKey: ['settings'],
     queryFn: () => optionsService.getSettings(),
   })
 
   const settings = data?.data?.data || []
-  console.log("Fetched Settings:", settings)
+  
   const branchSetting = settings.find(s => s.key === 'branch')
   const branches = branchSetting?.values || []
+  
+  const cooldownSetting = settings.find(s => s.key === 'used_email_cooldown_days')
+
+  useEffect(() => {
+    if (cooldownSetting && cooldownSetting.values && cooldownSetting.values.length > 0) {
+      setCooldownValue(cooldownSetting.values[0])
+    }
+  }, [cooldownSetting])
 
   const updateMut = useMutation({
-    mutationFn: ({ id, d }) => {
-      console.log("updateMut Payload - id:", id, "data:", d)
-      return optionsService.updateSettings(id, d)
-    },
+    mutationFn: ({ id, d }) => optionsService.updateSettings(id, d),
     onSuccess: () => {
       qc.invalidateQueries(['settings'])
       setNewBranch('')
       setEditingIndex(null)
       setDeleteTarget(null)
-      toast.success('Branch settings updated')
+      toast.success('Settings updated')
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to update settings')
   })
 
   const createMut = useMutation({
-    mutationFn: (d) => {
-      console.log("createMut Payload - data:", d)
-      return optionsService.createSettings(d)
-    },
+    mutationFn: (d) => optionsService.createSettings(d),
     onSuccess: () => {
       qc.invalidateQueries(['settings'])
       setNewBranch('')
-      toast.success('Branch settings created')
+      toast.success('Settings created')
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to create settings')
   })
@@ -58,36 +62,40 @@ export default function Settings() {
     const updatedValues = [...branches, newBranch.trim().toUpperCase()]
     
     if (!branchSetting) {
-      const payload = { key: 'branch', values: updatedValues }
-      console.log("handleAdd Create Payload:", payload)
-      createMut.mutate(payload)
+      createMut.mutate({ key: 'branch', values: updatedValues })
     } else {
-      const payload = { id: branchSetting.id, d: { key: 'branch', values: updatedValues } }
-      console.log("handleAdd Update Payload:", payload)
-      updateMut.mutate(payload)
+      updateMut.mutate({ id: branchSetting.id, d: { key: 'branch', values: updatedValues } })
     }
   }
 
   const confirmDelete = () => {
     if (!branchSetting || deleteTarget === null) return
     const updatedValues = branches.filter((_, i) => i !== deleteTarget.index)
-    const payload = { id: branchSetting.id, d: { key: 'branch', values: updatedValues } }
-    console.log("confirmDelete Payload:", payload)
-    updateMut.mutate(payload)
+    updateMut.mutate({ id: branchSetting.id, d: { key: 'branch', values: updatedValues } })
   }
 
   const handleSaveEdit = (index) => {
     if (!editValue.trim() || !branchSetting) return
     const updatedValues = [...branches]
     updatedValues[index] = editValue.trim().toUpperCase()
-    const payload = { id: branchSetting.id, d: { key: 'branch', values: updatedValues } }
-    console.log("handleSaveEdit Payload:", payload)
-    updateMut.mutate(payload)
+    updateMut.mutate({ id: branchSetting.id, d: { key: 'branch', values: updatedValues } })
   }
 
   const startEdit = (index, value) => {
     setEditingIndex(index)
     setEditValue(value)
+  }
+
+  const handleSaveCooldown = (e) => {
+    e.preventDefault()
+    if (!cooldownValue.toString().trim()) return
+    const updatedValues = [cooldownValue.toString().trim()]
+    
+    if (!cooldownSetting) {
+      createMut.mutate({ key: 'used_email_cooldown_days', values: updatedValues })
+    } else {
+      updateMut.mutate({ id: cooldownSetting.id, d: { key: 'used_email_cooldown_days', values: updatedValues } })
+    }
   }
 
   return (
@@ -96,97 +104,121 @@ export default function Settings() {
         <h2 className="text-2xl font-bold text-gray-800">Settings</h2>
       </div>
       
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 max-w-2xl">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Branch Management</h3>
-        
-        {isLoading ? (
-          <p className="text-gray-500">Loading settings...</p>
-        ) : (
-          <div className="space-y-6">
-            <form onSubmit={handleAdd} className="flex items-end gap-3">
-              <div className="flex-1">
-                <Input 
-                  label="Add New Branch" 
-                  value={newBranch} 
-                  onChange={e => setNewBranch(e.target.value)} 
-                  placeholder="e.g., VELLORE" 
-                />
-              </div>
-              <Button type="submit" >
-                <Plus className="w-4 h-4" /> Add
-              </Button>
-            </form>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Branch Management */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Branch Management</h3>
+          
+          {isLoading ? (
+            <p className="text-gray-500">Loading settings...</p>
+          ) : (
+            <div className="space-y-6">
+              <form onSubmit={handleAdd} className="flex items-end gap-3">
+                <div className="flex-1">
+                  <Input 
+                    label="Add New Branch" 
+                    value={newBranch} 
+                    onChange={e => setNewBranch(e.target.value)} 
+                    placeholder="e.g., VELLORE" 
+                  />
+                </div>
+                <Button type="submit" >
+                  <Plus className="w-4 h-4" /> Add
+                </Button>
+              </form>
 
-            <div className="border border-gray-100 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-gray-600 font-medium">
-                  <tr>
-                    <th className="px-4 py-3">Branch Name</th>
-                    <th className="px-4 py-3 text-right w-32">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {branches.length === 0 ? (
+              <div className="border border-gray-100 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-600 font-medium">
                     <tr>
-                      <td colSpan="2" className="px-4 py-4 text-center text-gray-500">No branches found</td>
+                      <th className="px-4 py-3">Branch Name</th>
+                      <th className="px-4 py-3 text-right w-32">Actions</th>
                     </tr>
-                  ) : (
-                    branches.map((branch, index) => (
-                      <tr key={index} className="hover:bg-gray-50/50">
-                        <td className="px-4 py-3">
-                          {editingIndex === index ? (
-                            <input 
-                              autoFocus
-                              type="text" 
-                              className="w-full border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                              value={editValue} 
-                              onChange={e => setEditValue(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') handleSaveEdit(index)
-                                if (e.key === 'Escape') setEditingIndex(null)
-                              }}
-                            />
-                          ) : (
-                            <span className="text-gray-700 font-medium">{branch}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {editingIndex === index ? (
-                              <>
-                                <button onClick={() => handleSaveEdit(index)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Save">
-                                  <Check className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => setEditingIndex(null)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Cancel">
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button onClick={() => startEdit(index, branch)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
-                                  <Pencil className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => setDeleteTarget({ index, branch })} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {branches.length === 0 ? (
+                      <tr>
+                        <td colSpan="2" className="px-4 py-4 text-center text-gray-500">No branches found</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      branches.map((branch, index) => (
+                        <tr key={index} className="hover:bg-gray-50/50">
+                          <td className="px-4 py-3">
+                            {editingIndex === index ? (
+                              <input 
+                                autoFocus
+                                type="text" 
+                                className="w-full border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                value={editValue} 
+                                onChange={e => setEditValue(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleSaveEdit(index)
+                                  if (e.key === 'Escape') setEditingIndex(null)
+                                }}
+                              />
+                            ) : (
+                              <span className="text-gray-700 font-medium">{branch}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {editingIndex === index ? (
+                                <>
+                                  <button onClick={() => handleSaveEdit(index)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Save">
+                                    <Check className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => setEditingIndex(null)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Cancel">
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button onClick={() => startEdit(index, branch)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => setDeleteTarget({ index, branch })} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            
-            {!branchSetting && !isLoading && (
-              <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-100">
-                Warning: Branch settings key not found in the database. Please ensure it is seeded.
-              </p>
-            )}
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Cooldown Days Management */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Cooldown Days</h3>
+          
+          {isLoading ? (
+            <p className="text-gray-500">Loading settings...</p>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">Set the global cooldown period (in days) before an email can be contacted again.</p>
+              <form onSubmit={handleSaveCooldown} className="flex items-end gap-3">
+                <div className="flex-1">
+                  <Input 
+                    label="Cooldown Days" 
+                    type="number"
+                    value={cooldownValue} 
+                    onChange={e => setCooldownValue(e.target.value)} 
+                    placeholder="e.g., 30" 
+                  />
+                </div>
+                <Button type="submit" loading={updateMut.isPending || createMut.isPending}>
+                  <Check className="w-4 h-4 mr-2" /> Save
+                </Button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
 
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirm Delete">

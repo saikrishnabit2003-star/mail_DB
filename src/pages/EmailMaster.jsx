@@ -14,6 +14,7 @@ import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
 import { dashboardService } from '../services/dashboard.service'
+import ProfileReplies from './ProfileReplies'
 
 export default function EmailMaster() {
   const { user, isAdmin } = useAuth()
@@ -395,6 +396,15 @@ export default function EmailMaster() {
         >
           Upload File
         </button>
+        <button
+          onClick={() => setActiveTab('replies')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'replies'
+            ? 'bg-white text-primary-600 shadow-sm'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+            }`}
+        >
+          Client Replies
+        </button>
         {isAdmin(user) && (
           <>
             <button
@@ -692,6 +702,10 @@ export default function EmailMaster() {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === 'replies' && (
+        <ProfileReplies />
       )}
 
       {activeTab === 'table' && isAdmin(user) && (
