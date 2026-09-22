@@ -9,7 +9,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
-import Select from '../components/ui/Select'
+import SearchableSelect from '../components/ui/SearchableSelect'
 import { Plus, Pencil, Trash2, Wifi, CheckCircle, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -207,18 +207,14 @@ export default function EmailAccounts() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">
-          <p className="text-sm text-gray-500">{accounts.length}accounts</p>
+          <p className="text-sm text-gray-500">{accounts.length} accounts</p>
           {isAdmin(user) && (
-            <Select 
+            <SearchableSelect 
               value={selectedEmployeeId || ''} 
-              onChange={(e) => setSelectedEmployeeId(e.target.value || null)} 
-              className="w-72"
-            >
-              <option value="">Select Employee...</option>
-              {employees.map(emp => (
-                <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>
-              ))}
-            </Select>
+              onChange={(val) => setSelectedEmployeeId(val || null)} 
+              placeholder="Select Employee..."
+              options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
+            />
           )}
         </div>
         <Button size="sm" onClick={() => { setForm(blank); setModal('create') }}>
@@ -231,41 +227,29 @@ export default function EmailAccounts() {
       <Modal open={modal === 'create' || modal === 'edit'} onClose={() => { setModal(null); setSmtpTestResult(null); setAutoFillProfileId(''); }} title={modal === 'create' ? 'Add Email Account' : 'Edit Account'} size="md">
         <div className="space-y-4">
           {isAdmin(user) && (
-            <Select
+            <SearchableSelect
               label={modal === 'edit' ? 'Employee (reassign)' : 'Employee'}
               value={form.employeeId || ''}
-              onChange={f('employeeId')}
-              required={modal === 'create'}
-            >
-              <option value="">
-                {modal === 'edit' ? 'Keep current employee...' : 'Select Employee...'}
-              </option>
-              {employees.map(emp => (
-                <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>
-              ))}
-            </Select>
+              onChange={(val) => setForm(p => ({ ...p, employeeId: val }))}
+              placeholder={modal === 'edit' ? 'Keep current employee...' : 'Select Employee...'}
+              options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
+            />
           )}
           
           {(isAdmin(user) ? !!activeEmployeeIdForAccounts : true) && (
-            <Select
+            <SearchableSelect
               label="Profile (Auto-fill Email)"
               value={autoFillProfileId}
-              onChange={(e) => {
-                const pId = e.target.value;
-                setAutoFillProfileId(pId);
-                const selectedProf = availableProfiles.find(p => p.id === pId);
+              onChange={(val) => {
+                setAutoFillProfileId(val);
+                const selectedProf = availableProfiles.find(p => p.id === val);
                 if (selectedProf && selectedProf.gmailAccount) {
                   setForm(prev => ({ ...prev, email: selectedProf.gmailAccount }));
                 }
               }}
-            >
-              <option value="">Select Profile...</option>
-              {availableProfiles.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.profileName} {p.gmailAccount ? `— ${p.gmailAccount}` : ''}
-                </option>
-              ))}
-            </Select>
+              placeholder="Select Profile..."
+              options={availableProfiles.map(p => ({ label: `${p.profileName} ${p.gmailAccount ? `— ${p.gmailAccount}` : ''}`, value: p.id }))}
+            />
           )}
           <Input label="Display Name" value={form.displayName || ''} onChange={f('displayName')} placeholder="Marketing Team" />
           <Input 
@@ -295,8 +279,7 @@ export default function EmailAccounts() {
               </p>
             )}
           </div>
-          <Select label="Account Type" value={form.accountType || 'gmail_smtp'} onChange={(e) => {
-            const val = e.target.value;
+          <SearchableSelect label="Account Type" value={form.accountType || 'gmail_smtp'} onChange={(val) => {
             setForm(prev => {
               if (val === 'gmail_smtp') {
                 return { ...prev, accountType: val, smtpHost: 'smtp.gmail.com', smtpPort: 587 };
@@ -305,10 +288,7 @@ export default function EmailAccounts() {
               }
               return { ...prev, accountType: val };
             });
-          }}>
-            <option value="gmail_smtp">Gmail SMTP</option>
-            <option value="smtp">Zoho SMTP</option>
-          </Select>
+          }} options={[{ label: 'Gmail SMTP', value: 'gmail_smtp' }, { label: 'Zoho SMTP', value: 'smtp' }]} />
           <div className="grid grid-cols-2 gap-4">
             <Input label="SMTP Host" value={form.smtpHost || ''} onChange={f('smtpHost')} />
             <Input label="SMTP Port" type="number" value={form.smtpPort || 587} onChange={f('smtpPort')} />

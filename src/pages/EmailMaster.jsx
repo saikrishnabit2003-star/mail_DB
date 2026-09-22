@@ -9,6 +9,7 @@ import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import SearchableSelect from '../components/ui/SearchableSelect'
+import MultiSelect from '../components/ui/MultiSelect'
 import { Upload, RefreshCw, Trash2, Users, ChevronLeft, ChevronRight, Search, Download, ChevronUp, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -25,13 +26,13 @@ export default function EmailMaster() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
-  const [countryFilter, setCountryFilter] = useState('')
-  const [stateFilter, setStateFilter] = useState('')
-  const [domainFilter, setDomainFilter] = useState('')
-  const [industryFilter, setIndustryFilter] = useState('')
-  const [universityFilter, setuniversityFilter] = useState('')
-  const [uploaderFilter, setUploaderFilter] = useState('')
-  const [mailSourceFilter, setMailSourceFilter] = useState('')
+  const [countryFilter, setCountryFilter] = useState([])
+  const [stateFilter, setStateFilter] = useState([])
+  const [domainFilter, setDomainFilter] = useState([])
+  const [industryFilter, setIndustryFilter] = useState([])
+  const [universityFilter, setuniversityFilter] = useState([])
+  const [uploaderFilter, setUploaderFilter] = useState([])
+  const [mailSourceFilter, setMailSourceFilter] = useState([])
   const [includeDuplicates, setIncludeDuplicates] = useState(true)
   const [activeTab, setActiveTab] = useState(isAdmin(user) ? 'table' : 'upload') // default tab based on role
 
@@ -64,13 +65,13 @@ export default function EmailMaster() {
       pageSize,
       search: search || undefined,
       searchFields: search ? 'email,fullName,university,domain,domain_group' : undefined,
-      country: countryFilter || undefined,
-      state: stateFilter || undefined,
-      domain: domainFilter || undefined,
-      industry: industryFilter || undefined,
-      university: universityFilter || undefined,
-      uploadedBy: uploaderFilter || undefined,
-      mailSource: mailSourceFilter || undefined,
+      country: countryFilter.length ? countryFilter.join(',') : undefined,
+      state: stateFilter.length ? stateFilter.join(',') : undefined,
+      domain: domainFilter.length ? domainFilter.join(',') : undefined,
+      industry: industryFilter.length ? industryFilter.join(',') : undefined,
+      university: universityFilter.length ? universityFilter.join(',') : undefined,
+      uploadedBy: uploaderFilter.length ? uploaderFilter.join(',') : undefined,
+      mailSource: mailSourceFilter.length ? mailSourceFilter.join(',') : undefined,
       includeDuplicates,
     }),
   })
@@ -714,15 +715,15 @@ export default function EmailMaster() {
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <p className="font-medium text-gray-700">Filters</p>
-              {(countryFilter || stateFilter || domainFilter || industryFilter || uploaderFilter || mailSourceFilter) && (
+              {(countryFilter.length > 0 || stateFilter.length > 0 || domainFilter.length > 0 || industryFilter.length > 0 || uploaderFilter.length > 0 || mailSourceFilter.length > 0) && (
                 <button
                   onClick={() => {
-                    setCountryFilter('')
-                    setStateFilter('')
-                    setDomainFilter('')
-                    setIndustryFilter('')
-                    setUploaderFilter('')
-                    setMailSourceFilter('')
+                    setCountryFilter([])
+                    setStateFilter([])
+                    setDomainFilter([])
+                    setIndustryFilter([])
+                    setUploaderFilter([])
+                    setMailSourceFilter([])
                     setPage(1)
                   }}
                   className="text-xs font-medium text-red-500 hover:text-red-600 hover:underline transition-all cursor-pointer"
@@ -733,62 +734,46 @@ export default function EmailMaster() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {/* The search is now in the table header */}
-              <SearchableSelect
+              <MultiSelect
                 label="Country"
                 value={countryFilter}
                 onChange={val => { setCountryFilter(val); setPage(1) }}
-                options={[
-                  { label: 'All Countries', value: '' },
-                  ...countries.map(c => ({ label: c, value: c }))
-                ]}
+                options={countries.map(c => ({ label: c, value: c }))}
                 placeholder="All Countries"
               />
-              <SearchableSelect
+              <MultiSelect
                 label="State"
                 value={stateFilter}
                 onChange={val => { setStateFilter(val); setPage(1) }}
-                options={[
-                  { label: 'All States', value: '' },
-                  ...states.map(s => ({ label: s, value: s }))
-                ]}
+                options={states.map(s => ({ label: s, value: s }))}
                 placeholder="All States"
               />
-              <SearchableSelect
+              <MultiSelect
                 label="Domain"
                 value={domainFilter}
                 onChange={val => { setDomainFilter(val); setPage(1) }}
-                options={[
-                  { label: 'All Domains', value: '' },
-                  ...domains.map(d => ({ label: d, value: d }))
-                ]}
+                options={domains.map(d => ({ label: d, value: d }))}
                 placeholder="All Domains"
               />
-              {/* <SearchableSelect
+              {/* <MultiSelect
                 label="Industry"
                 value={industryFilter}
                 onChange={val => { setIndustryFilter(val); setPage(1) }}
-                options={[
-                  { label: 'All Industries', value: '' },
-                  ...industries.map(i => ({ label: i, value: i }))
-                ]}
+                options={industries.map(i => ({ label: i, value: i }))}
                 placeholder="All Industries"
               /> */}
-              <SearchableSelect
+              <MultiSelect
                 label="Uploader"
                 value={uploaderFilter}
                 onChange={val => { setUploaderFilter(val); setPage(1) }}
-                options={[
-                  { label: 'All Uploaders', value: '' },
-                  ...uploaders.map(u => ({ label: u.name, value: u.id }))
-                ]}
+                options={uploaders.map(u => ({ label: u.name, value: u.id }))}
                 placeholder="All Uploaders"
               />
-              <SearchableSelect
+              <MultiSelect
                 label="Mail Source"
                 value={mailSourceFilter}
                 onChange={val => { setMailSourceFilter(val); setPage(1) }}
                 options={[
-                  { label: 'All Sources', value: '' },
                   { label: 'Google Scholar', value: 'Google Scholar' },
                   { label: 'University', value: 'University' },
                   { label: 'Other', value: 'Other' },

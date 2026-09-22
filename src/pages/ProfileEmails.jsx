@@ -9,7 +9,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
-import Select from '../components/ui/Select'
+import SearchableSelect from '../components/ui/SearchableSelect'
 import { Download, ListChecks, RefreshCw, RotateCcw, Trash2, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx'
@@ -143,39 +143,29 @@ export default function ProfileEmails() {
           {/* Step 1: Employee selector — only for admin/super_admin */}
           {isAdmin(user) && (
             <div className="min-w-72">
-              <Select
+              <SearchableSelect
                 label="Step 1 — Select Employee"
                 value={selectedEmployeeId || ''}
-                onChange={e => {
-                  setSelectedEmployeeId(e.target.value || null)
+                onChange={val => {
+                  setSelectedEmployeeId(val || null)
                   setSelectedProfile('') // reset profile when employee changes
                 }}
-              >
-                <option value="">
-                  {user?.role === 'super_admin' ? 'All Employees' : 'Select Employee...'}
-                </option>
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>
-                ))}
-              </Select>
+                placeholder={user?.role === 'super_admin' ? 'All Employees' : 'Select Employee...'}
+                options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
+              />
             </div>
           )}
 
           {/* Step 2: Profile selector — filtered by selected employee for admin */}
           <div className="min-w-72">
-            <Select
+            <SearchableSelect
               label={isAdmin(user) ? 'Step 2 — Select Profile' : 'Select Profile'}
               value={selectedProfile}
-              onChange={e => setSelectedProfile(e.target.value)}
+              onChange={val => setSelectedProfile(val || '')}
               disabled={isAdmin(user) && !selectedEmployeeId && user?.role !== 'super_admin'}
-            >
-              <option value="">
-                {isAdmin(user) && !selectedEmployeeId && user?.role !== 'super_admin'
-                  ? 'Select an employee first...'
-                  : 'Choose a profile...'}
-              </option>
-              {profiles.map(p => <option key={p.id} value={p.id}>{p.profileName}</option>)}
-            </Select>
+              placeholder={isAdmin(user) && !selectedEmployeeId && user?.role !== 'super_admin' ? 'Select an employee first...' : 'Choose a profile...'}
+              options={profiles.map(p => ({ label: p.profileName, value: p.id }))}
+            />
           </div>
 
           {selectedProfile && (

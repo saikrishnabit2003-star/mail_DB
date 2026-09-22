@@ -8,7 +8,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
-import Select from '../components/ui/Select'
+import SearchableSelect from '../components/ui/SearchableSelect'
 import MultiSelect from '../components/ui/MultiSelect'
 import { emailMasterService } from '../services/emailMaster.service'
 import { Plus, Pencil, Trash2, Power, PowerOff, Upload, X, Info, LayoutTemplate, Filter, Settings2, University } from 'lucide-react'
@@ -336,16 +336,12 @@ export default function Profiles() {
         <div className="flex items-center gap-4 flex-wrap">
           <p className="text-sm text-gray-500">{profiles.length} profiles</p>
           {isAdmin(user) && (
-            <Select
+            <SearchableSelect
               value={selectedEmployeeId || ''}
-              onChange={e => setSelectedEmployeeId(e.target.value || null)}
-              className="w-72"
-            >
-              <option value="">Select Employee...</option>
-              {employees.map(emp => (
-                <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>
-              ))}
-            </Select>
+              onChange={val => setSelectedEmployeeId(val || null)}
+              placeholder="Select Employee..."
+              options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
+            />
           )}
           {isAdmin(user) && !employees.length && selectedEmployeeId && (
             <p className="text-xs text-gray-500">Loading employees...</p>
@@ -433,19 +429,13 @@ export default function Profiles() {
             {/* INFO TAB */}
             <div className={activeTab === 'info' ? 'space-y-4' : 'hidden'}>
               {isAdmin(user) && (
-                <Select
+                <SearchableSelect
                   label={modal === 'edit' ? 'Employee (reassign)' : 'Employee'}
                   value={form.employeeId || ''}
-                  onChange={f('employeeId')}
-                  required={modal === 'create'}
-                >
-                  <option value="">
-                    {modal === 'edit' ? 'Keep current employee...' : 'Select Employee...'}
-                  </option>
-                  {employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>
-                  ))}
-                </Select>
+                  onChange={(val) => setForm(prev => ({ ...prev, employeeId: val }))}
+                  placeholder={modal === 'edit' ? 'Keep current employee...' : 'Select Employee...'}
+                  options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
+                />
               )}
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Profile Name" value={form.profileName || ''} onChange={f('profileName')} placeholder="e.g. Empoyee Name - Profile Name" />

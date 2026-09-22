@@ -8,7 +8,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
-import Select from '../components/ui/Select'
+import SearchableSelect from '../components/ui/SearchableSelect'
 import { Play, Pause, Plus, RefreshCw, Trash2, Edit2, Calendar, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, addMinutes } from 'date-fns'
@@ -186,16 +186,12 @@ export default function Campaigns() {
         <div className="flex items-center gap-4 flex-wrap">
           <p className="text-sm text-gray-500">{campaigns.length} campaigns</p>
           {isAdmin(user) && (
-            <Select 
+            <SearchableSelect 
               value={selectedEmployeeId || ''} 
-              onChange={(e) => setSelectedEmployeeId(e.target.value || null)} 
-              className="w-72"
-            >
-              <option value="">Select Employee...</option>
-              {employees.map(emp => (
-                <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>
-              ))}
-            </Select>
+              onChange={(val) => setSelectedEmployeeId(val || null)} 
+              placeholder="Select Employee..."
+              options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
+            />
           )}
         </div>
         <div className="flex gap-2">
@@ -335,23 +331,9 @@ export default function Campaigns() {
         <div className="space-y-4">
           <Input label="Campaign Name" value={form.campaignName} onChange={f('campaignName')} placeholder="e.g. July USA Tech CEOs" />
           {isAdmin(user) && (
-            <Select label="Employee" value={form.employeeId || ''} onChange={f('employeeId')}>
-              <option value="">Select an employee...</option>
-              {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>)}
-            </Select>
+            <SearchableSelect label="Employee" value={form.employeeId || ''} onChange={(val) => setForm(p => ({ ...p, employeeId: val }))} placeholder="Select an employee..." options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))} />
           )}
-          <Select label="Profile" value={form.profileId} onChange={f('profileId')} disabled={isAdmin(user) && !form.employeeId}>
-            {isAdmin(user) && !form.employeeId ? (
-              <option value="">Select an employee first...</option>
-            ) : (
-              <>
-                <option value="">Select a profile...</option>
-                {profiles
-                  .filter(p => !isAdmin(user) || p.employeeId === form.employeeId)
-                  .map(p => <option key={p.id} value={p.id}>{p.profileName} — {p.gmailAccount}</option>)}
-              </>
-            )}
-          </Select>
+          <SearchableSelect label="Profile" value={form.profileId} onChange={(val) => setForm(p => ({ ...p, profileId: val }))} disabled={isAdmin(user) && !form.employeeId} placeholder={isAdmin(user) && !form.employeeId ? 'Select an employee first...' : 'Select a profile...'} options={profiles.filter(p => !isAdmin(user) || p.employeeId === form.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))} />
           <Input label="Daily Limit (optional)" type="number" value={form.dailyLimit} onChange={f('dailyLimit')} placeholder="Leave empty to use profile default" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
@@ -395,30 +377,18 @@ export default function Campaigns() {
             required
           />
           {isAdmin(user) && (
-            <Select label="Employee" value={scheduleForm.employeeId || ''} onChange={sf('employeeId')}>
-              <option value="">Select an employee...</option>
-              {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} — {emp.email}</option>)}
-            </Select>
+            <SearchableSelect label="Employee" value={scheduleForm.employeeId || ''} onChange={(val) => setScheduleForm(p => ({ ...p, employeeId: val }))} placeholder="Select an employee..." options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))} />
           )}
-          <Select 
+          <SearchableSelect 
             label="Profile" 
             value={scheduleForm.profileId} 
-            onChange={sf('profileId')} 
+            onChange={(val) => setScheduleForm(p => ({ ...p, profileId: val }))} 
             disabled={isAdmin(user) && !scheduleForm.employeeId} 
             error={scheduleErrors.profileId}
             required
-          >
-            {isAdmin(user) && !scheduleForm.employeeId ? (
-              <option value="">Select an employee first...</option>
-            ) : (
-              <>
-                <option value="">Select a profile...</option>
-                {profiles
-                  .filter(p => !isAdmin(user) || p.employeeId === scheduleForm.employeeId)
-                  .map(p => <option key={p.id} value={p.id}>{p.profileName} — {p.gmailAccount}</option>)}
-              </>
-            )}
-          </Select>
+            placeholder={isAdmin(user) && !scheduleForm.employeeId ? 'Select an employee first...' : 'Select a profile...'}
+            options={profiles.filter(p => !isAdmin(user) || p.employeeId === scheduleForm.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))}
+          />
           
           <div className="grid grid-cols-2 gap-3">
             {scheduleForm.recurrenceType === 'once' && (
@@ -452,20 +422,10 @@ export default function Campaigns() {
             max="10000"
           />
 
-          <Select label="Max Retries on Failure" value={scheduleForm.maxRetries} onChange={sf('maxRetries')}>
-            <option value="0">No retries</option>
-            <option value="1">1 retry</option>
-            <option value="3">3 retries</option>
-            <option value="5">5 retries</option>
-            <option value="10">10 retries</option>
-          </Select>
+          <SearchableSelect label="Max Retries on Failure" value={scheduleForm.maxRetries} onChange={(val) => setScheduleForm(p => ({ ...p, maxRetries: val }))} options={[{label: 'No retries', value: '0'}, {label: '1 retry', value: '1'}, {label: '3 retries', value: '3'}, {label: '5 retries', value: '5'}, {label: '10 retries', value: '10'}]} />
 
           {/* Recurrence Options */}
-          <Select label="Repeat" value={scheduleForm.recurrenceType} onChange={sf('recurrenceType')}>
-            <option value="once">Once</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-          </Select>
+          <SearchableSelect label="Repeat" value={scheduleForm.recurrenceType} onChange={(val) => setScheduleForm(p => ({ ...p, recurrenceType: val }))} options={[{label: 'Once', value: 'once'}, {label: 'Daily', value: 'daily'}, {label: 'Weekly', value: 'weekly'}]} />
 
           {scheduleForm.recurrenceType === 'weekly' && (
             <div className="space-y-2">

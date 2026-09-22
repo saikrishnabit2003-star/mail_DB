@@ -7,7 +7,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import Input from '../../components/ui/Input'
-import Select from '../../components/ui/Select'
+import SearchableSelect from '../../components/ui/SearchableSelect'
 import { Plus, Pencil, Trash2, Key, RefreshCw, Shield, ChevronUp, ChevronDown, Filter } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -15,15 +15,21 @@ import { useAuth } from '../../context/AuthContext'
 
 const FilterDropdown = ({ title, value, onChange, options }) => {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const ref = useRef(null);
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setSearch('');
+      }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  const filteredOptions = options.filter(opt => opt.label.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="relative inline-flex items-center gap-1 cursor-pointer" ref={ref}>
@@ -33,17 +39,37 @@ const FilterDropdown = ({ title, value, onChange, options }) => {
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
       />
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-50 p-1 min-w-[100px]" onClick={e => e.stopPropagation()}>
-          <select
-            className="text-xs border border-gray-200 rounded px-1 py-1.5 w-full outline-none font-normal"
-            value={value}
-            onChange={(e) => { onChange(e.target.value); setOpen(false); }}
-          >
-            <option value="">All</option>
-            {options.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-50 p-1.5 min-w-[140px]" onClick={e => e.stopPropagation()}>
+          <div className="relative mb-1">
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="text-xs border border-gray-200 rounded px-2 py-1.5 w-full outline-none"
+              autoFocus
+            />
+          </div>
+          <ul className="max-h-40 overflow-y-auto text-xs">
+            <li 
+              className={`px-2 py-1.5 cursor-pointer hover:bg-gray-100 rounded ${value === '' ? 'bg-primary-50 text-primary-600 font-medium' : ''}`}
+              onClick={() => { onChange(''); setOpen(false); setSearch(''); }}
+            >
+              All
+            </li>
+            {filteredOptions.map(opt => (
+              <li
+                key={opt.value}
+                className={`px-2 py-1.5 cursor-pointer hover:bg-gray-100 rounded ${value === opt.value ? 'bg-primary-50 text-primary-600 font-medium' : ''}`}
+                onClick={() => { onChange(opt.value); setOpen(false); setSearch(''); }}
+              >
+                {opt.label}
+              </li>
             ))}
-          </select>
+            {filteredOptions.length === 0 && (
+              <li className="px-2 py-1.5 text-gray-500 text-center">No results</li>
+            )}
+          </ul>
         </div>
       )}
     </div>
@@ -221,6 +247,11 @@ export default function Users() {
         </div>
       )
     },
+    {
+      key: 'password',
+      label: 'Password',
+      render: (v) => v ? <span className="bg-gray-50 text-gray-600 border border-gray-200 px-2 py-1 rounded-md text-xs tracking-wider font-mono">{v}</span> : '—'
+    },
     { key: 'role', label: 'Role', render: (v) => <Badge label={v} /> },
     {
       key: 'status',
@@ -250,8 +281,8 @@ export default function Users() {
       render: (v) => <span className="text-gray-600 font-medium">{v || '—'}</span>
     },
     {
-      key: 'password',
-      label: 'Password',
+      key: 'phone number',
+      label: 'Phone',
       render: (v) => v ? <span className="bg-gray-50 text-gray-600 border border-gray-200 px-2 py-1 rounded-md text-xs tracking-wider font-mono">{v}</span> : '—'
     },
     { key: 'totalUploads', label: renderSortHeader('Uploads', 'uniqueUploads'), render: (v, row) => <StatBadge value={row.stats?.uniqueUploads} colorClass="bg-blue-50 text-blue-700 border border-blue-200" /> },
@@ -358,29 +389,37 @@ export default function Users() {
           <Input label="Name" error={formErrors.name} value={form.name || ''} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFormErrors(err => ({ ...err, name: '' })); }} placeholder="Full name" required />
           <Input label="Email" type="email" error={formErrors.email} value={form.email || ''} onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setFormErrors(err => ({ ...err, email: '' })); }} placeholder="email@example.com" autoComplete="new-password" required />
           <Input label="Password" type="password" error={formErrors.password} value={form.password || ''} onChange={e => { setForm(f => ({ ...f, password: e.target.value })); setFormErrors(err => ({ ...err, password: '' })); }} placeholder="Min 8 characters" minLength={8} autoComplete="new-password" required />
-          <Select label="Role" value={form.role || 'employee'} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-            <option value="employee">Employee</option>
-            {isSuperAdmin && <option value="admin">Admin</option>}
-            {isSuperAdmin && <option value="super_admin">Super Admin</option>}
-          </Select>
-          <Select label="Branch" value={form.branch || ''} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}>
-            <option value="">Select a branch...</option>
-            {branchOptions.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
-          </Select>
+          <SearchableSelect
+            label="Role"
+            value={form.role || 'employee'}
+            onChange={val => setForm(f => ({ ...f, role: val }))}
+            options={[
+              { label: 'Employee', value: 'employee' },
+              ...(isSuperAdmin ? [{ label: 'Admin', value: 'admin' }, { label: 'Super Admin', value: 'super_admin' }] : [])
+            ]}
+          />
+          <SearchableSelect
+            label="Branch"
+            value={form.branch || ''}
+            onChange={val => setForm(f => ({ ...f, branch: val }))}
+            options={branchOptions}
+            placeholder="Select a branch..."
+          />
           {/* If creating an employee, super_admin can assign them to an admin */}
           {isSuperAdmin && form.role === 'employee' && (
-            <Select
+            <SearchableSelect
               label="Assign to Admin"
               value={form.assignedToAdmin || ''}
-              onChange={e => setForm(f => ({ ...f, assignedToAdmin: e.target.value }))}
-            >
-              <option value="">None (Unassigned)</option>
-              {users.filter(u => u.role === 'admin').map(admin => (
-                <option key={admin.id} value={admin.employeeId}>
-                  {admin.name} ({admin.email})
-                </option>
-              ))}
-            </Select>
+              onChange={val => setForm(f => ({ ...f, assignedToAdmin: val }))}
+              options={[
+                { label: 'None (Unassigned)', value: '' },
+                ...users.filter(u => u.role === 'admin').map(admin => ({
+                  label: `${admin.name} (${admin.email})`,
+                  value: admin.employeeId
+                }))
+              ]}
+              placeholder="Select an admin..."
+            />
           )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
@@ -393,27 +432,36 @@ export default function Users() {
       <Modal open={modal === 'edit'} onClose={() => setModal(null)} title="Edit User" overflowVisible>
         <div className="space-y-4">
           <Input label="Name" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          <Select label="Status" value={form.status || 'active'} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </Select>
-          <Select label="Branch" value={form.branch || ''} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}>
-            <option value="">Select a branch...</option>
-            {branchOptions.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
-          </Select>
+          <SearchableSelect
+            label="Status"
+            value={form.status || 'active'}
+            onChange={val => setForm(f => ({ ...f, status: val }))}
+            options={[
+              { label: 'Active', value: 'active' },
+              { label: 'Inactive', value: 'inactive' }
+            ]}
+          />
+          <SearchableSelect
+            label="Branch"
+            value={form.branch || ''}
+            onChange={val => setForm(f => ({ ...f, branch: val }))}
+            options={branchOptions}
+            placeholder="Select a branch..."
+          />
           {isSuperAdmin && selected?.role === 'employee' && (
-            <Select
+            <SearchableSelect
               label="Assign to Admin"
               value={form.assignedToAdmin || ''}
-              onChange={e => setForm(f => ({ ...f, assignedToAdmin: e.target.value }))}
-            >
-              <option value="">None (Unassigned)</option>
-              {users.filter(u => u.role === 'admin').map(admin => (
-                <option key={admin.id} value={admin.employeeId}>
-                  {admin.name} ({admin.email})
-                </option>
-              ))}
-            </Select>
+              onChange={val => setForm(f => ({ ...f, assignedToAdmin: val }))}
+              options={[
+                { label: 'None (Unassigned)', value: '' },
+                ...users.filter(u => u.role === 'admin').map(admin => ({
+                  label: `${admin.name} (${admin.email})`,
+                  value: admin.employeeId
+                }))
+              ]}
+              placeholder="Select an admin..."
+            />
           )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>

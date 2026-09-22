@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { emailMasterService } from '../services/emailMaster.service'
 import Input from '../components/ui/Input'
-import Select from '../components/ui/Select'
+import SearchableSelect from '../components/ui/SearchableSelect'
 import Button from '../components/ui/Button'
 import Table from '../components/ui/Table'
 import Modal from '../components/ui/Modal'
@@ -260,16 +260,17 @@ export default function ProfileReplies() {
             />
           </div>
           <div className="w-full sm:w-[200px]">
-            <Select 
+            <SearchableSelect 
               label="Reason *" 
               value={formData.reason}
-              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+              onChange={(val) => setFormData({ ...formData, reason: val })}
               required
-            >
-              <option value="replied">Replied</option>
-              <option value="converted">Converted</option>
-              <option value="other">Others</option>
-            </Select>
+              options={[
+                { label: 'Replied', value: 'replied' },
+                { label: 'Converted', value: 'converted' },
+                { label: 'Others', value: 'other' }
+              ]}
+            />
           </div>
           {formData.reason === 'other' && (
             <div className="w-full sm:w-[320px]">
@@ -308,34 +309,31 @@ export default function ProfileReplies() {
           </div>
           <div className="flex flex-wrap xl:flex-nowrap items-end gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
             <div className="flex-1 min-w-[140px]">
-              <Select 
+              <SearchableSelect 
                 label="Reason"
                 value={filters.reason}
-                onChange={e => setFilters(f => ({ ...f, reason: e.target.value }))}
-              >
-                <option value="">All Reasons</option>
-                {filterOptions.reasons.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </Select>
+                onChange={val => setFilters(f => ({ ...f, reason: val || '' }))}
+                placeholder="All Reasons"
+                options={filterOptions.reasons.map(o => ({ label: o.label, value: o.value }))}
+              />
             </div>
             <div className="flex-1 min-w-[140px]">
-              <Select 
+              <SearchableSelect 
                 label="Marked By"
                 value={filters.replyMarkedByName}
-                onChange={e => setFilters(f => ({ ...f, replyMarkedByName: e.target.value }))}
-              >
-                <option value="">All Users</option>
-                {filterOptions.replyMarkedByNames.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </Select>
+                onChange={val => setFilters(f => ({ ...f, replyMarkedByName: val || '' }))}
+                placeholder="All Users"
+                options={filterOptions.replyMarkedByNames.map(o => ({ label: o.label, value: o.value }))}
+              />
             </div>
             <div className="flex-1 min-w-[140px]">
-              <Select 
+              <SearchableSelect 
                 label="Updated Time"
                 value={filters.updatedTime}
-                onChange={e => setFilters(f => ({ ...f, updatedTime: e.target.value, updatedStartDate: '', updatedEndDate: '' }))}
-              >
-                <option value="">Any Time</option>
-                {filterOptions.updatedTimePresets.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </Select>
+                onChange={val => setFilters(f => ({ ...f, updatedTime: val || '', updatedStartDate: '', updatedEndDate: '' }))}
+                placeholder="Any Time"
+                options={filterOptions.updatedTimePresets.map(o => ({ label: o.label, value: o.value }))}
+              />
             </div>
 
             {filters.updatedTime === 'custom' && (

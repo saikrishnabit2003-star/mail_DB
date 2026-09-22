@@ -7,7 +7,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import Input from '../../components/ui/Input'
-import Select from '../../components/ui/Select'
+import SearchableSelect from '../../components/ui/SearchableSelect'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -79,21 +79,9 @@ export default function Employees() {
 
       <Modal open={modal === 'create'} onClose={() => setModal(null)} title="Create Employee">
         <div className="space-y-4">
-          <Select label="User Account" value={form.userId || ''} onChange={e => setForm(f => ({ ...f, userId: e.target.value }))}>
-            <option value="">Select a user...</option>
-            {employeeUsers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
-          </Select>
+          <SearchableSelect label="User Account" value={form.userId || ''} onChange={val => setForm(f => ({ ...f, userId: val }))} placeholder="Select a user..." options={employeeUsers.map(u => ({ label: `${u.name} (${u.email})`, value: u.id }))} />
           <Input label="Department" value={form.department || ''} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Sales, Marketing" />
-          <Select label="Branch" value={form.branch || ''} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}>
-            <option value="">Select a branch...</option>
-            <option value="Vellore">Vellore</option>
-            <option value="Chennai">Chennai</option>
-            <option value="Marthandam">Marthandam</option>
-            <option value="Trichy">Trichy</option>
-            <option value="Nagarcoil-1">Nagarcoil-1</option>
-            <option value="Nagarcoil-2">Nagarcoil-2</option>
-            <option value="Villupuram">Villupuram</option>
-          </Select>
+          <SearchableSelect label="Branch" value={form.branch || ''} onChange={val => setForm(f => ({ ...f, branch: val }))} placeholder="Select a branch..." options={['Vellore', 'Chennai', 'Marthandam', 'Trichy', 'Nagarcoil-1', 'Nagarcoil-2', 'Villupuram'].map(b => ({ label: b, value: b }))} />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
             <Button onClick={() => createMut.mutate(form)} loading={createMut.isPending}>Create</Button>
@@ -104,20 +92,8 @@ export default function Employees() {
       <Modal open={modal === 'edit'} onClose={() => setModal(null)} title="Edit Employee">
         <div className="space-y-4">
           <Input label="Department" value={form.department || ''} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} />
-          <Select label="Branch" value={form.branch || ''} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}>
-            <option value="">Select a branch...</option>
-            <option value="Vellore">Vellore</option>
-            <option value="Chennai">Chennai</option>
-            <option value="Marthandam">Marthandam</option>
-            <option value="Trichy">Trichy</option>
-            <option value="Nagarcoil-1">Nagarcoil-1</option>
-            <option value="Nagarcoil-2">Nagarcoil-2</option>
-            <option value="Villupuram">Villupuram</option>
-          </Select>
-          <Select label="Status" value={form.status || 'active'} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </Select>
+          <SearchableSelect label="Branch" value={form.branch || ''} onChange={val => setForm(f => ({ ...f, branch: val }))} placeholder="Select a branch..." options={['Vellore', 'Chennai', 'Marthandam', 'Trichy', 'Nagarcoil-1', 'Nagarcoil-2', 'Villupuram'].map(b => ({ label: b, value: b }))} />
+          <SearchableSelect label="Status" value={form.status || 'active'} onChange={val => setForm(f => ({ ...f, status: val }))} options={[{label: 'Active', value: 'active'}, {label: 'Inactive', value: 'inactive'}]} />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
             <Button onClick={() => updateMut.mutate({ id: selected.id, d: form })} loading={updateMut.isPending}>Save</Button>
