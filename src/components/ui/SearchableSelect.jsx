@@ -95,7 +95,7 @@ export default function SearchableSelect({
 
         {/* Dropdown panel */}
         {open && (
-          <div className="absolute left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="absolute left-0 min-w-full w-max z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-w-[90vw]">
             {/* Search box */}
             <div className="p-2 border-b border-gray-100">
               <div className="relative">
@@ -130,7 +130,7 @@ export default function SearchableSelect({
                         : 'text-gray-700 hover:bg-gray-50'
                     )}
                   >
-                    <span className="truncate">{o.label}</span>
+                    <span className="whitespace-nowrap pr-4">{o.label}</span>
                     {o.value === value && <Check className="w-3.5 h-3.5 flex-shrink-0 text-primary-600" />}
                   </li>
                 ))

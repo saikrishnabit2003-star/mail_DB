@@ -201,7 +201,7 @@ export default function Users() {
 
   const openEdit = (user) => {
     setSelected(user)
-    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '' })
+    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '', accessLevel: user.accessLevel || 'partial' })
     setModal('edit')
   }
 
@@ -253,6 +253,11 @@ export default function Users() {
       render: (v) => v ? <span className="bg-gray-50 text-gray-600 border border-gray-200 px-2 py-1 rounded-md text-xs tracking-wider font-mono">{v}</span> : '—'
     },
     { key: 'role', label: 'Role', render: (v) => <Badge label={v} /> },
+    ...(activeTab === 'admin' ? [{
+      key: 'accessLevel',
+      label: 'Access Level',
+      render: (v) => v ? <Badge label={v === 'fullaccess' ? 'Full Access' : 'Partial'} /> : '—'
+    }] : []),
     {
       key: 'status',
       label: (
@@ -375,7 +380,7 @@ export default function Users() {
               <Trash2 className="w-4 h-4" /> Delete Selected
             </Button>
           )}
-          <Button size="sm" onClick={() => { setForm({ name: '', email: '', password: '', role: 'employee', branch: 'Vellore', assignedToAdmin: '' }); setFormErrors({}); setModal('create') }}>
+          <Button size="sm" onClick={() => { setForm({ name: '', email: '', password: '', role: 'employee', branch: 'Vellore', assignedToAdmin: '', accessLevel: 'partial' }); setFormErrors({}); setModal('create') }}>
             <Plus className="w-4 h-4" /> Add User
           </Button>
         </div>
@@ -398,6 +403,17 @@ export default function Users() {
               ...(isSuperAdmin ? [{ label: 'Admin', value: 'admin' }, { label: 'Super Admin', value: 'super_admin' }] : [])
             ]}
           />
+          {form.role === 'admin' && (
+            <SearchableSelect
+              label="Access Level"
+              value={form.accessLevel || 'partial'}
+              onChange={val => setForm(f => ({ ...f, accessLevel: val }))}
+              options={[
+                { label: 'Partial', value: 'partial' },
+                { label: 'Full Access', value: 'fullaccess' }
+              ]}
+            />
+          )}
           <SearchableSelect
             label="Branch"
             value={form.branch || ''}
@@ -448,6 +464,17 @@ export default function Users() {
             options={branchOptions}
             placeholder="Select a branch..."
           />
+          {selected?.role === 'admin' && (
+            <SearchableSelect
+              label="Access Level"
+              value={form.accessLevel || 'partial'}
+              onChange={val => setForm(f => ({ ...f, accessLevel: val }))}
+              options={[
+                { label: 'Partial', value: 'partial' },
+                { label: 'Full Access', value: 'fullaccess' }
+              ]}
+            />
+          )}
           {isSuperAdmin && selected?.role === 'employee' && (
             <SearchableSelect
               label="Assign to Admin"
