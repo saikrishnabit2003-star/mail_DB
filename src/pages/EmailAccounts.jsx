@@ -18,6 +18,7 @@ const blank = { email: '', accountType: 'gmail_smtp', displayName: '', smtpHost:
 
 export default function EmailAccounts() {
   const { user, isAdmin } = useAuth()
+  const isPartialAdmin = user?.role === 'admin' && user?.accessLevel === 'partial'
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
@@ -41,6 +42,8 @@ export default function EmailAccounts() {
   })
   const accounts = data?.data?.data || []
   const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
+  // Own data = no employee filter selected
+  const isOwnData = !selectedEmployeeId
 
   const activeEmployeeIdForAccounts = isAdmin(user)
     ? (form.employeeId || selectedEmployeeId)
@@ -195,10 +198,12 @@ export default function EmailAccounts() {
     {
       key: 'actions', label: '',
       render: (_, row) => (
-        <div className="flex items-center gap-1">
-          <button onClick={() => { setSelected(row); setForm({ email: row.email, accountType: row.accountType, displayName: row.displayName, smtpHost: row.smtpHost, smtpPort: row.smtpPort, useTls: row.useTls, isActive: row.isActive }); setModal('edit') }} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
-          <button onClick={() => { setDeleteTarget(row); setModal('delete'); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-        </div>
+        (!isPartialAdmin || isOwnData) ? (
+          <div className="flex items-center gap-1">
+            <button onClick={() => { setSelected(row); setForm({ email: row.email, accountType: row.accountType, displayName: row.displayName, smtpHost: row.smtpHost, smtpPort: row.smtpPort, useTls: row.useTls, isActive: row.isActive }); setModal('edit') }} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
+            <button onClick={() => { setDeleteTarget(row); setModal('delete'); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+          </div>
+        ) : null
       )
     }
   ]
@@ -217,9 +222,11 @@ export default function EmailAccounts() {
             />
           )}
         </div>
-        <Button size="sm" onClick={() => { setForm(blank); setModal('create') }}>
-          <Plus className="w-4 h-4" /> Add Account
-        </Button>
+        {(!isPartialAdmin || isOwnData) && (
+          <Button size="sm" onClick={() => { setForm(blank); setModal('create') }}>
+            <Plus className="w-4 h-4" /> Add Account
+          </Button>
+        )}
       </div>
 
       <Table columns={columns} data={accounts} loading={isLoading} emptyMsg="No email accounts yet" />

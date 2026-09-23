@@ -60,10 +60,13 @@ const quillModules = {
 
 export default function Profiles() {
   const { user, isAdmin } = useAuth()
+  const isPartialAdmin = user?.role === 'admin' && user?.accessLevel === 'partial'
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState(defaultForm)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null)
+  // Own data = no employee filter selected (admin viewing their own profiles)
+  const isOwnData = !selectedEmployeeId
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [filterCount, setFilterCount] = useState(null)
   const [isCountingFilters, setIsCountingFilters] = useState(false)
@@ -347,9 +350,11 @@ export default function Profiles() {
             <p className="text-xs text-gray-500">Loading employees...</p>
           )}
         </div>
-        <Button size="sm" onClick={() => openModal('create')}>
-          <Plus className="w-4 h-4" /> New Profile
-        </Button>
+        {!isPartialAdmin || isOwnData ? (
+          <Button size="sm" onClick={() => openModal('create')}>
+            <Plus className="w-4 h-4" /> New Profile
+          </Button>
+        ) : null}
       </div>
 
       {/* Profile cards */}
@@ -380,12 +385,16 @@ export default function Profiles() {
                 <button onClick={() => openModal('edit', p)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                   <Pencil className="w-3.5 h-3.5" /> Edit
                 </button>
-                <button onClick={() => toggleMut.mutate({ id: p.id, active: p.isActive })} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors">
-                  {p.isActive ? <><PowerOff className="w-3.5 h-3.5" /> Deactivate</> : <><Power className="w-3.5 h-3.5" /> Activate</>}
-                </button>
-                <button onClick={() => { setDeleteTarget(p); setModal('delete') }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
-                </button>
+                {(!isPartialAdmin || isOwnData) && (
+                  <>
+                    <button onClick={() => toggleMut.mutate({ id: p.id, active: p.isActive })} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors">
+                      {p.isActive ? <><PowerOff className="w-3.5 h-3.5" /> Deactivate</> : <><Power className="w-3.5 h-3.5" /> Activate</>}
+                    </button>
+                    <button onClick={() => { setDeleteTarget(p); setModal('delete') }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))}
@@ -773,7 +782,7 @@ export default function Profiles() {
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
               {activeTab === 'test' ? (
-                <Button onClick={handleSave} loading={createMut.isPending || updateMut.isPending}>
+                <Button onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={isPartialAdmin && !isOwnData}>
                   {modal === 'create' ? 'Create Profile' : 'Save Changes'}
                 </Button>
               ) : (

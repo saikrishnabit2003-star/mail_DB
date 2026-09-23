@@ -86,6 +86,7 @@ export default function Users() {
   const qc = useQueryClient()
   const { user: currentUser } = useAuth()
   const isSuperAdmin = currentUser?.role === 'super_admin'
+  const hasFullAccess = isSuperAdmin || (currentUser?.role === 'admin' && currentUser?.accessLevel === 'full')
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState({})
@@ -145,20 +146,29 @@ export default function Users() {
 
   const createMut = useMutation({
     mutationFn: (d) => usersService.create(d),
-    onSuccess: () => { qc.invalidateQueries(['users']); setModal(null); toast.success('User created') },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed'),
+    onSuccess: (r) => {
+      if (r?.data?.success === false) return toast.error(r.data.message || 'Failed');
+      qc.invalidateQueries(['users']); setModal(null); toast.success('User created')
+    },
+    onError: (e) => toast.error(e.response?.data?.message || e.message || 'Failed'),
   })
 
   const updateMut = useMutation({
     mutationFn: ({ id, d }) => usersService.update(id, d),
-    onSuccess: () => { qc.invalidateQueries(['users']); setModal(null); toast.success('User updated') },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed'),
+    onSuccess: (r) => {
+      if (r?.data?.success === false) return toast.error(r.data.message || 'Failed');
+      qc.invalidateQueries(['users']); setModal(null); toast.success('User updated')
+    },
+    onError: (e) => toast.error(e.response?.data?.message || e.message || 'Failed'),
   })
 
   const deleteMut = useMutation({
     mutationFn: (id) => usersService.delete(id),
-    onSuccess: () => { qc.invalidateQueries(['users']); toast.success('User deleted') },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed'),
+    onSuccess: (r) => {
+      if (r?.data?.success === false) return toast.error(r.data.message || 'Failed');
+      qc.invalidateQueries(['users']); toast.success('User deleted')
+    },
+    onError: (e) => toast.error(e.response?.data?.message || e.message || 'Failed'),
   })
 
   const deleteManyMut = useMutation({
@@ -176,8 +186,11 @@ export default function Users() {
 
   const pwMut = useMutation({
     mutationFn: ({ id, d }) => usersService.updatePassword(id, d),
-    onSuccess: () => { setModal(null); toast.success('Password updated') },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed'),
+    onSuccess: (r) => {
+      if (r?.data?.success === false) return toast.error(r.data.message || 'Failed');
+      setModal(null); toast.success('Password updated')
+    },
+    onError: (e) => toast.error(e.response?.data?.message || e.message || 'Failed'),
   })
 
   const migrateMut = useMutation({
@@ -196,12 +209,21 @@ export default function Users() {
       setFormErrors(errors);
       return;
     }
-    createMut.mutate(form);
+
+    const payload = { ...form };
+    if (payload.role !== 'admin') {
+      delete payload.accessLevel;
+    }
+    if (!payload.phoneNumber || payload.phoneNumber.trim() === '') {
+      delete payload.phoneNumber;
+    }
+    
+    createMut.mutate(payload);
   }
 
   const openEdit = (user) => {
     setSelected(user)
-    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '', accessLevel: user.accessLevel || 'partial' })
+    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '', accessLevel: user.accessLevel || 'partial', phoneNumber: user.phoneNumber || '' })
     setModal('edit')
   }
 
@@ -256,7 +278,7 @@ export default function Users() {
     ...(activeTab === 'admin' ? [{
       key: 'accessLevel',
       label: 'Access Level',
-      render: (v) => v ? <Badge label={v === 'fullaccess' ? 'Full Access' : 'Partial'} /> : '—'
+      render: (v) => v ? <Badge label={v === 'full' ? 'Full Access' : 'Partial'} /> : '—'
     }] : []),
     {
       key: 'status',
@@ -286,7 +308,7 @@ export default function Users() {
       render: (v) => <span className="text-gray-600 font-medium">{v || '—'}</span>
     },
     {
-      key: 'phone number',
+      key: 'phoneNumber',
       label: 'Phone',
       render: (v) => v ? <span className="bg-gray-50 text-gray-600 border border-gray-200 px-2 py-1 rounded-md text-xs tracking-wider font-mono">{v}</span> : '—'
     },
@@ -299,17 +321,26 @@ export default function Users() {
     { key: 'createdAt', label: 'Created', render: (v) => v ? <span className="text-gray-500 whitespace-nowrap">{format(new Date(v), 'MMM d, yyyy')}</span> : '—' },
     {
       key: 'actions', label: '',
-      render: (_, row) => (
-        <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
-          <button onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
-          <button onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Change Password"><Key className="w-4 h-4" /></button>
-          <button onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
-        </div>
-      )
+      render: (_, row) => {
+        const isSelf = row.id === currentUser?.userId || row.id === currentUser?.id || row.email === currentUser?.email;
+        const canEdit = hasFullAccess || isSelf;
+        const canDelete = hasFullAccess;
+        
+        if (!canEdit) return null;
+        return (
+          <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+            <button onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
+            <button onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Change Password"><Key className="w-4 h-4" /></button>
+            {canDelete && (
+              <button onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+            )}
+          </div>
+        )
+      }
     }
   ]
 
-  const displayColumns = activeTab === 'employee' ? [
+  const displayColumns = (activeTab === 'employee' && hasFullAccess) ? [
     {
       key: 'select',
       label: (
@@ -370,7 +401,7 @@ export default function Users() {
           <p className="text-sm text-gray-500 mt-10">{filteredUsers.length} users</p>
         </div>
         <div className="flex gap-2">
-          {activeTab === 'employee' && selectedIds.length > 0 && (
+          {hasFullAccess && activeTab === 'employee' && selectedIds.length > 0 && (
             <Button
               size="sm"
               className="bg-red-600 hover:bg-red-700 text-white border-transparent"
@@ -380,9 +411,11 @@ export default function Users() {
               <Trash2 className="w-4 h-4" /> Delete Selected
             </Button>
           )}
-          <Button size="sm" onClick={() => { setForm({ name: '', email: '', password: '', role: 'employee', branch: 'Vellore', assignedToAdmin: '', accessLevel: 'partial' }); setFormErrors({}); setModal('create') }}>
-            <Plus className="w-4 h-4" /> Add User
-          </Button>
+          {hasFullAccess && (
+            <Button size="sm" onClick={() => { setForm({ name: '', email: '', password: '', role: 'employee', branch: 'Vellore', assignedToAdmin: '', accessLevel: 'partial', phoneNumber: '' }); setFormErrors({}); setModal('create') }}>
+              <Plus className="w-4 h-4" /> Add User
+            </Button>
+          )}
         </div>
       </div>
 
@@ -394,6 +427,7 @@ export default function Users() {
           <Input label="Name" error={formErrors.name} value={form.name || ''} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFormErrors(err => ({ ...err, name: '' })); }} placeholder="Full name" required />
           <Input label="Email" type="email" error={formErrors.email} value={form.email || ''} onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setFormErrors(err => ({ ...err, email: '' })); }} placeholder="email@example.com" autoComplete="new-password" required />
           <Input label="Password" type="password" error={formErrors.password} value={form.password || ''} onChange={e => { setForm(f => ({ ...f, password: e.target.value })); setFormErrors(err => ({ ...err, password: '' })); }} placeholder="Min 8 characters" minLength={8} autoComplete="new-password" required />
+          <Input label="Phone Number" type="tel" value={form.phoneNumber || ''} onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))} placeholder="Phone number" />
           <SearchableSelect
             label="Role"
             value={form.role || 'employee'}
@@ -410,7 +444,7 @@ export default function Users() {
               onChange={val => setForm(f => ({ ...f, accessLevel: val }))}
               options={[
                 { label: 'Partial', value: 'partial' },
-                { label: 'Full Access', value: 'fullaccess' }
+                { label: 'Full Access', value: 'full' }
               ]}
             />
           )}
@@ -448,6 +482,7 @@ export default function Users() {
       <Modal open={modal === 'edit'} onClose={() => setModal(null)} title="Edit User" overflowVisible>
         <div className="space-y-4">
           <Input label="Name" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <Input label="Phone Number" type="tel" value={form.phoneNumber || ''} onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))} placeholder="Phone number" />
           <SearchableSelect
             label="Status"
             value={form.status || 'active'}
@@ -471,7 +506,7 @@ export default function Users() {
               onChange={val => setForm(f => ({ ...f, accessLevel: val }))}
               options={[
                 { label: 'Partial', value: 'partial' },
-                { label: 'Full Access', value: 'fullaccess' }
+                { label: 'Full Access', value: 'full' }
               ]}
             />
           )}
@@ -492,7 +527,16 @@ export default function Users() {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
-            <Button onClick={() => updateMut.mutate({ id: selected.id, d: form })} loading={updateMut.isPending}>Save Changes</Button>
+            <Button onClick={() => {
+              const payload = { ...form };
+              if (selected?.role !== 'admin') {
+                delete payload.accessLevel;
+              }
+              if (!payload.phoneNumber || payload.phoneNumber.trim() === '') {
+                delete payload.phoneNumber;
+              }
+              updateMut.mutate({ id: selected.id, d: payload })
+            }} loading={updateMut.isPending}>Save Changes</Button>
           </div>
         </div>
       </Modal>

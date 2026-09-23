@@ -30,6 +30,7 @@ const itemVariants = {
 export default function Campaigns() {
   const qc = useQueryClient()
   const { user, isAdmin } = useAuth()
+  const isPartialAdmin = user?.role === 'admin' && user?.accessLevel === 'partial'
   const [modal, setModal] = useState(false)
   const [scheduleModal, setScheduleModal] = useState(false)
   const [editModal, setEditModal] = useState(false)
@@ -76,6 +77,8 @@ export default function Campaigns() {
   const campaigns = rawCampaigns?.data ?? (Array.isArray(rawCampaigns) ? rawCampaigns : [])
   const profiles  = profilesData?.data?.data || []
   const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
+  // Own data = no employee selected (partial admin viewing their own campaigns)
+  const isOwnData = !selectedEmployeeId
 
   const startMut = useMutation({
     mutationFn: (d) => campaignsService.start(d, selectedEmployeeId),
@@ -195,20 +198,23 @@ export default function Campaigns() {
           )}
         </div>
         <div className="flex gap-2">
-          
-          <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '' }); setModal(true) }}>
-            <Plus className="w-4 h-4" /> Start Campaign
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => { 
-            setScheduleForm({ 
-              campaignName: '', profileId: '', scheduledFor: '', scheduledTime: '', dailyLimit: '', employeeId: '', maxRetries: 3, 
-              recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '' 
-            }); 
-            setScheduleErrors({});
-            setScheduleModal(true) 
-          }}>
-            <Calendar className="w-4 h-4" /> Schedule Campaign
-          </Button>
+          {(!isPartialAdmin || isOwnData) && (
+            <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '' }); setModal(true) }}>
+              <Plus className="w-4 h-4" /> Start Campaign
+            </Button>
+          )}
+          {(!isPartialAdmin || isOwnData) && (
+            <Button variant="secondary" size="sm" onClick={() => { 
+              setScheduleForm({ 
+                campaignName: '', profileId: '', scheduledFor: '', scheduledTime: '', dailyLimit: '', employeeId: '', maxRetries: 3, 
+                recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '' 
+              }); 
+              setScheduleErrors({});
+              setScheduleModal(true) 
+            }}>
+              <Calendar className="w-4 h-4" /> Schedule Campaign
+            </Button>
+          )}
         </div>
       </div>
 
@@ -289,25 +295,26 @@ export default function Campaigns() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-4 border-t border-border/50 flex-wrap relative z-10">
-                  {c.status === 'running' && (
+                  {(!isPartialAdmin || isOwnData) && c.status === 'running' && (
                     <Button variant="secondary" size="sm" onClick={() => pauseMut.mutate(c.id)} loading={pauseMut.isPending}>
                       <Pause className="w-3.5 h-3.5" /> Pause
                     </Button>
                   )}
-                  {c.status === 'paused' && (
+                  {(!isPartialAdmin || isOwnData) && c.status === 'paused' && (
                     <Button size="sm" onClick={() => resumeMut.mutate(c.id)} loading={resumeMut.isPending}>
                       <Play className="w-3.5 h-3.5" /> Resume
                     </Button>
                   )}
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
-                    onClick={() => { setEditingCampaignId(c.id); setEditDailyLimit(c.dailyLimit); setEditModal(true) }}
-                  >
-                    <Edit2 className="w-3.5 h-3.5" /> Edit Limit
-                  </Button>
-                  
-                  {c.status !== 'running' && (
+                  {(!isPartialAdmin || isOwnData) && (
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      onClick={() => { setEditingCampaignId(c.id); setEditDailyLimit(c.dailyLimit); setEditModal(true) }}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" /> Edit Limit
+                    </Button>
+                  )}
+                  {(!isPartialAdmin || isOwnData) && c.status !== 'running' && (
                     <Button 
                       variant="danger" 
                       size="sm" 

@@ -16,6 +16,7 @@ import * as XLSX from 'xlsx'
 
 export default function ProfileEmails() {
   const { user, isAdmin } = useAuth()
+  const isPartialAdmin = user?.role === 'admin' && user?.accessLevel === 'partial'
   const qc = useQueryClient()
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null)
   const [selectedProfile, setSelectedProfile] = useState('')
@@ -31,6 +32,8 @@ export default function ProfileEmails() {
     enabled: isAdmin(user),
   })
   const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
+  // Own data = no employee filter selected
+  const isOwnData = !selectedEmployeeId
 
   const { data: profilesData } = useQuery({
     queryKey: ['profiles', selectedEmployeeId],
@@ -129,7 +132,9 @@ export default function ProfileEmails() {
     {
       key: 'actions', label: '',
       render: (_, row) => (
-        <button onClick={() => setDeleteId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+        (!isPartialAdmin || isOwnData) ? (
+          <button onClick={() => setDeleteId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+        ) : null
       )
     }
   ]
@@ -170,18 +175,24 @@ export default function ProfileEmails() {
 
           {selectedProfile && (
             <>
-              <Button size="sm" onClick={() => setGenModal(true)}>
-                <Zap className="w-4 h-4" /> Generate List
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => retryMut.mutate()} loading={retryMut.isPending}>
-                <RotateCcw className="w-4 h-4" /> Retry Failed
-              </Button>
+              {(!isPartialAdmin || isOwnData) && (
+                <Button size="sm" onClick={() => setGenModal(true)}>
+                  <Zap className="w-4 h-4" /> Generate List
+                </Button>
+              )}
+              {(!isPartialAdmin || isOwnData) && (
+                <Button variant="secondary" size="sm" onClick={() => retryMut.mutate()} loading={retryMut.isPending}>
+                  <RotateCcw className="w-4 h-4" /> Retry Failed
+                </Button>
+              )}
               <Button variant="secondary" size="sm" onClick={downloadFailedEmails}>
                 <Download className="w-4 h-4" /> Download Failed
               </Button>
-              <Button variant="danger" size="sm" onClick={() => setClearModal(true)} loading={clearMut.isPending}>
-                <Trash2 className="w-4 h-4" /> Clear All
-              </Button>
+              {(!isPartialAdmin || isOwnData) && (
+                <Button variant="danger" size="sm" onClick={() => setClearModal(true)} loading={clearMut.isPending}>
+                  <Trash2 className="w-4 h-4" /> Clear All
+                </Button>
+              )}
             </>
           )}
         </div>
