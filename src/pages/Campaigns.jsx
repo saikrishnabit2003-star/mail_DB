@@ -223,12 +223,13 @@ export default function Campaigns() {
       ) : !campaigns.length ? (
         <div className="bg-card text-muted-foreground rounded-2xl border border-border p-12 text-center">No campaigns yet</div>
       ) : (
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="space-y-4"
-        >
+        <div className="overflow-y-auto pr-2 custom-scrollbar pb-4" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="space-y-4"
+          >
           {campaigns.map(c => {
             const pct = progress(c)
             return (
@@ -330,7 +331,8 @@ export default function Campaigns() {
               </motion.div>
             )
           })}
-        </motion.div>
+          </motion.div>
+        </div>
       )}
 
       {/* Start Campaign Modal */}

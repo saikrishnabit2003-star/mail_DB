@@ -42,7 +42,8 @@ export default function Header({ title }) {
   const unread = notifs.filter(n => !n.isRead).length || 0
 
   useEffect(() => {
-    if (notifs) {
+    // Only run the logic if we actually have data loaded
+    if (notifData) {
       if (prevNotifIds !== null) {
         const newNotifs = notifs.filter(n => !prevNotifIds.has(n.id) && !n.isRead)
         if (newNotifs.length > 0) {
@@ -69,12 +70,12 @@ export default function Header({ title }) {
                 ✕
               </button>
             </div>
-          ), { duration: 3000, position: 'top-right' })
+          ), { duration: 8000, position: 'top-right' })
         }
       }
       setPrevNotifIds(new Set(notifs.map(n => n.id)))
     }
-  }, [notifs])
+  }, [notifData])
 
   const readAllMut = useMutation({
     mutationFn: () => notificationsService.readAll(),
@@ -88,7 +89,7 @@ export default function Header({ title }) {
   }
 
   return (
-    <header className="h-16 glass flex items-center justify-between px-6 shrink-0 sticky top-0 z-30">
+    <header className="h-16 bg-background border-b border-border flex items-center justify-between px-6 shrink-0 sticky top-0 z-30">
       <h1 className="text-xl font-semibold text-foreground tracking-tight">{title}</h1>
 
       <div className="flex items-center gap-3">
