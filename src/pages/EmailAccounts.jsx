@@ -233,17 +233,17 @@ export default function EmailAccounts() {
 
       <Modal open={modal === 'create' || modal === 'edit'} onClose={() => { setModal(null); setSmtpTestResult(null); setAutoFillProfileId(''); }} title={modal === 'create' ? 'Add Email Account' : 'Edit Account'} size="md">
         <div className="space-y-4">
-          {isAdmin(user) && (
+          {isAdmin(user) && modal !== 'edit' && (
             <SearchableSelect
-              label={modal === 'edit' ? 'Employee (reassign)' : 'Employee'}
+              label="Employee"
               value={form.employeeId || ''}
               onChange={(val) => setForm(p => ({ ...p, employeeId: val }))}
-              placeholder={modal === 'edit' ? 'Keep current employee...' : 'Select Employee...'}
+              placeholder="Select Employee..."
               options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
             />
           )}
           
-          {(isAdmin(user) ? !!activeEmployeeIdForAccounts : true) && (
+          {(isAdmin(user) ? !!activeEmployeeIdForAccounts : true) && modal !== 'edit' && (
             <SearchableSelect
               label="Profile (Auto-fill Email)"
               value={autoFillProfileId}

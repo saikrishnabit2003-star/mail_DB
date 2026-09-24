@@ -134,6 +134,14 @@ export default function EmailMaster() {
   const companies = options.companies || []
   const mailSources = options.mailSources || []
 
+  const getErrorMessage = (e, fallback = 'Failed') => {
+    const data = e.response?.data;
+    if (data?.message === 'Validation error' && Array.isArray(data?.data) && data.data.length > 0) {
+      return data.data[0].msg || data.message;
+    }
+    return data?.message || fallback;
+  }
+
   const uploadMut = useMutation({
     mutationFn: ({ file, max, source }) => emailMasterService.upload(file, max || undefined, source || undefined),
     onSuccess: (r) => {
@@ -146,7 +154,7 @@ export default function EmailMaster() {
 
     },
     onError: (e) => {
-      toast.error(e.response?.data?.message || 'Upload failed')
+      toast.error(getErrorMessage(e, 'Upload failed'))
     },
     onSettled: () => {
       setIsProcessing(false)
@@ -159,7 +167,7 @@ export default function EmailMaster() {
       qc.invalidateQueries(['email-master'])
       toast.success('Email deleted')
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Delete failed'),
+    onError: (e) => toast.error(getErrorMessage(e, 'Delete failed')),
   })
 
   const handleFile = async (e) => {

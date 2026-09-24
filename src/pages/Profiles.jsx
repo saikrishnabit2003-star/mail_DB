@@ -73,6 +73,7 @@ export default function Profiles() {
   const [activeTab, setActiveTab] = useState('info') // info, templates, filters, sending
   const [selected, setSelected] = useState(null)
   const [testEmail, setTestEmail] = useState('')
+  const [testTemplateName, setTestTemplateName] = useState('')
   const [filterLimitError, setFilterLimitError] = useState(null)
   const [templateErrors, setTemplateErrors] = useState([])
 
@@ -111,13 +112,21 @@ export default function Profiles() {
   })
   const dropdownOptions = dropdownData?.data?.data || {}
 
+  const getErrorMessage = (e, fallback = 'Failed') => {
+    const data = e.response?.data;
+    if (data?.message === 'Validation error' && Array.isArray(data?.data) && data.data.length > 0) {
+      return data.data[0].msg || data.message;
+    }
+    return data?.message || fallback;
+  }
+
   const createMut = useMutation({
     mutationFn: (d) => {
       const { employeeId, ...rest } = d;
       return profilesService.create(rest, employeeId || selectedEmployeeId);
     },
     onSuccess: () => { qc.invalidateQueries(['profiles']); setModal(null); toast.success('Profile created') },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed'),
+    onError: (e) => toast.error(getErrorMessage(e, 'Failed to create profile')),
   })
   const updateMut = useMutation({
     mutationFn: ({ id, d }) => {
@@ -126,12 +135,12 @@ export default function Profiles() {
       return profilesService.update(id, { ...rest, employeeId: employeeId || undefined }, selectedEmployeeId)
     },
     onSuccess: () => { qc.invalidateQueries(['profiles']); setModal(null); toast.success('Profile updated') },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed'),
+    onError: (e) => toast.error(getErrorMessage(e, 'Failed to update profile')),
   })
   const deleteMut = useMutation({
     mutationFn: (id) => profilesService.delete(id, selectedEmployeeId),
     onSuccess: () => { qc.invalidateQueries(['profiles']); toast.success('Deleted') },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed'),
+    onError: (e) => toast.error(getErrorMessage(e, 'Failed to delete profile')),
   })
   const toggleMut = useMutation({
     mutationFn: ({ id, active }) => active ? profilesService.deactivate(id, selectedEmployeeId) : profilesService.activate(id, selectedEmployeeId),
@@ -144,7 +153,7 @@ export default function Profiles() {
       const msg = res.data?.message || res.data?.data?.message || res.message || 'Test email sent successfully';
       toast.success(msg);
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed to send test email'),
+    onError: (e) => toast.error(getErrorMessage(e, 'Failed to send test email')),
   })
 
   const f = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }))
@@ -404,7 +413,10 @@ export default function Profiles() {
       {/* Create/Edit Modal */}
       <Modal
         open={modal === 'create' || modal === 'edit'}
-        onClose={() => setModal(null)}
+        onClose={() => {
+          setModal(null)
+          setTestTemplateName('')
+        }}
         title={modal === 'create' ? 'Create Profile' : 'Edit Profile'}
         size="lg"
       >
@@ -750,10 +762,27 @@ export default function Profiles() {
                     placeholder="e.g. test@example.com"
                   />
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Template (Optional)</label>
+                    <select
+                      className="w-full h-[42px] px-3 border border-gray-300 rounded-lg shadow-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white"
+                      value={testTemplateName}
+                      onChange={(e) => setTestTemplateName(e.target.value)}
+                    >
+                      <option value="">Select Template...</option>
+                      {selected?.templates?.map((t, idx) => (
+                        <option key={idx} value={idx.toString()}>{idx + 1}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
                     <Button 
                       onClick={() => {
                         if (!testEmail) return toast.error('Please enter an email address')
-                        testEmailMut.mutate({ toEmail: testEmail })
+                        const payload = { toEmail: testEmail }
+                        if (testTemplateName) {
+                          payload.templateId = testTemplateName
+                        }
+                        testEmailMut.mutate(payload)
                       }}
                       loading={testEmailMut.isPending}
                       disabled={!testEmail}
