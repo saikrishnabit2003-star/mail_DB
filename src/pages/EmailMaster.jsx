@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { emailMasterService } from '../services/emailMaster.service'
@@ -16,6 +16,7 @@ import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
 import { dashboardService } from '../services/dashboard.service'
 import ProfileReplies from './ProfileReplies'
+import { useDebounce } from '../hooks/useDebounce'
 
 export default function EmailMaster() {
   const { user, isAdmin } = useAuth()
@@ -24,6 +25,7 @@ export default function EmailMaster() {
   const [maxLimit, setMaxLimit] = useState('')
   const [mailSourceUpload, setMailSourceUpload] = useState('')   // selected during upload
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 500)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
   const [countryFilter, setCountryFilter] = useState([])
@@ -55,16 +57,20 @@ export default function EmailMaster() {
   const [uploadedFile, setUploadedFile] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteSelectedTarget, setDeleteSelectedTarget] = useState(false)
+  const [selectedRows, setSelectedRows] = useState([])
+  const [exportModal, setExportModal] = useState(false)
+  const [exportFormat, setExportFormat] = useState('xlsx')
 
   const STANDARD_FIELDS = ['Email', 'Full Name', 'University', 'Country', 'State', 'City', 'Industry', 'Designation', 'Domain', 'Domain Group', 'Phone', 'Website', 'LinkedIn', 'Citation']
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['email-master', page, pageSize, search, countryFilter, stateFilter, domainFilter, industryFilter, universityFilter, uploaderFilter, mailSourceFilter, includeDuplicates],
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['email-master', page, pageSize, debouncedSearch, countryFilter, stateFilter, domainFilter, industryFilter, universityFilter, uploaderFilter, mailSourceFilter, includeDuplicates],
     queryFn: () => emailMasterService.list({
       page,
       pageSize,
-      search: search || undefined,
-      searchFields: search ? 'email,fullName,university,domain,domain_group' : undefined,
+      search: debouncedSearch || undefined,
+      searchFields: debouncedSearch ? 'email,fullName,university,domain,domain_group' : undefined,
       country: countryFilter.length ? countryFilter.join(',') : undefined,
       state: stateFilter.length ? stateFilter.join(',') : undefined,
       domain: domainFilter.length ? domainFilter.join(',') : undefined,
@@ -74,13 +80,20 @@ export default function EmailMaster() {
       mailSource: mailSourceFilter.length ? mailSourceFilter.join(',') : undefined,
       includeDuplicates,
     }),
+    placeholderData: (prev) => prev,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
   const rawData = data?.data?.data
   const records = rawData?.data ?? (Array.isArray(rawData) ? rawData : [])
   const total = rawData?.total ?? 0
   const totalPages = rawData?.totalPages ?? 1
-  const options = data?.data?.options || {}
+  const { data: optionsRes } = useQuery({
+    queryKey: ['email-master-options'],
+    queryFn: () => emailMasterService.getDropdownOptions(),
+    staleTime: 1000 * 60 * 30,
+  })
+  const options = optionsRes?.data?.data || {}
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ['email-master-stats'],
@@ -146,6 +159,7 @@ export default function EmailMaster() {
     mutationFn: ({ file, max, source }) => emailMasterService.upload(file, max || undefined, source || undefined),
     onSuccess: (r) => {
       qc.invalidateQueries(['email-master'])
+      qc.invalidateQueries(['email-master-options'])
       setUploadSummary(r.data)
       setUploadStep(3)
       toast.success(r.data?.message || 'Upload successful')
@@ -169,6 +183,45 @@ export default function EmailMaster() {
     },
     onError: (e) => toast.error(getErrorMessage(e, 'Delete failed')),
   })
+
+  const deleteSelectedMut = useMutation({
+    mutationFn: (ids) => Promise.all(ids.map(id => emailMasterService.deleteEmail(id))),
+    onSuccess: () => {
+      qc.invalidateQueries(['email-master'])
+      setSelectedRows([])
+      toast.success('Selected emails deleted')
+    },
+    onError: (e) => toast.error(getErrorMessage(e, 'Failed to delete selected emails or Dont have permission to delete it ')),
+  })
+
+  const exportMut = useMutation({
+    mutationFn: (format) => emailMasterService.download({
+      format,
+      search: debouncedSearch || undefined,
+      country: countryFilter.length ? countryFilter.join(',') : undefined,
+      state: stateFilter.length ? stateFilter.join(',') : undefined,
+      domain: domainFilter.length ? domainFilter.join(',') : undefined,
+      industry: industryFilter.length ? industryFilter.join(',') : undefined,
+      university: universityFilter.length ? universityFilter.join(',') : undefined,
+      mailSource: mailSourceFilter.length ? mailSourceFilter.join(',') : undefined,
+      includeDuplicates,
+    }),
+    onSuccess: (res, format) => {
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `email_master.${format}`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setExportModal(false)
+      toast.success('Export completed!')
+    },
+    onError: (e) => {
+      toast.error(getErrorMessage(e, 'Export failed'))
+    }
+  })
+
 
   const handleFile = async (e) => {
     const file = e.target.files[0]
@@ -296,7 +349,32 @@ export default function EmailMaster() {
     );
   };
 
-  const columns = [
+  const toggleRowSelect = (id) => {
+    setSelectedRows(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id])
+  }
+
+  const toggleAllRows = (e) => {
+    if (e.target.checked) {
+      setSelectedRows(records.map(r => r.id || r._id))
+    } else {
+      setSelectedRows([])
+    }
+  }
+
+  const columns = useMemo(() => [
+    // {
+    //   key: 'select',
+    //   label: <input type="checkbox" onChange={toggleAllRows} checked={records.length > 0 && selectedRows.length === records.length} className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer" />,
+    //   sortable: false,
+    //   render: (_, row) => (
+    //     <input
+    //       type="checkbox"
+    //       checked={selectedRows.includes(row.id || row._id)}
+    //       onChange={() => toggleRowSelect(row.id || row._id)}
+    //       className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+    //     />
+    //   )
+    // },
     { key: 'sno', label: 'S.No', sortable: false, render: (_, __, i) => i + 1 + (page - 1) * pageSize },
     { key: 'fullName', label: 'Full Name', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'email', label: 'Email', render: v => <span className="font-medium text-blue-600">{v ? highlightMatch(v, search) : ''}</span> },
@@ -304,17 +382,19 @@ export default function EmailMaster() {
     {
       key: 'website', label: 'Website',
       render: v => v
-        ? <a href={v.startsWith('http') ? v : `https://${v}`} target="_blank" rel="noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
+        ? <a href={v} target="_blank" rel="noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
         : '—'
     },
     { key: 'country', label: 'Country', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'state', label: 'State', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'city', label: 'City', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'domain', label: 'Domain', render: v => v ? highlightMatch(v, search) : '—' },
-    { key: 'domain_group', label: 'Domain Group', minWidth: '300px', render: v => {
-      const text = Array.isArray(v) ? v.join(', ') : v;
-      return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{highlightMatch(text, search)}</div> : '—';
-    } },
+    {
+      key: 'domain_group', label: 'Domain Group', minWidth: '300px', render: v => {
+        const text = Array.isArray(v) ? v.join(', ') : v;
+        return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{highlightMatch(text, search)}</div> : '—';
+      }
+    },
     { key: 'industry', label: 'Industry', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'designation', label: 'Designation', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'phone', label: 'Phone', render: v => v || '—' },
@@ -360,7 +440,7 @@ export default function EmailMaster() {
         </button>
       )
     }
-  ]
+  ], [records, selectedRows, page, pageSize, search])
 
   const handleHistorySort = (field) => {
     if (historySortField === field) {
@@ -549,7 +629,7 @@ export default function EmailMaster() {
                         });
                         const ws = XLSX.utils.json_to_sheet(formattedEmails)
                         const wb = XLSX.utils.book_new()
-                        console.log("ws :",formattedEmails)
+                        console.log("ws :", formattedEmails)
                         XLSX.utils.book_append_sheet(wb, ws, "Failed Emails")
                         XLSX.writeFile(wb, "uploaded_failed_mails_list.xlsx")
                       } catch (err) {
@@ -579,10 +659,17 @@ export default function EmailMaster() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Select value={historyEmployee} onChange={e => setHistoryEmployee(e.target.value)} className="w-48 bg-white">
-                <option value="">All Employees</option>
-                {(responseData.employees || responseData.data?.employees || uploaders).map(u => <option key={u.id || u._id} value={u.id || u._id}>{u.name}</option>)}
-              </Select>
+              <div className="w-48">
+                <SearchableSelect
+                  value={historyEmployee}
+                  onChange={val => setHistoryEmployee(val)}
+                  options={[
+                    { label: 'All Employees', value: '' },
+                    ...(responseData.employees || responseData.data?.employees || uploaders).map(u => ({ label: u.name, value: u.id || u._id }))
+                  ]}
+                  placeholder="All Employees"
+                />
+              </div>
 
               <div className="flex bg-gray-100/80 p-1 rounded-xl border border-gray-200/50">
                 {['today', 'last_7_days', 'last_month', 'custom'].map(p => (
@@ -809,8 +896,20 @@ export default function EmailMaster() {
                     onChange={e => { setSearch(e.target.value); setPage(1) }}
                   />
                 </div>
-                <div>
-                  Showing <span className="font-medium text-gray-900">{total > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</span> of <span className="font-medium text-gray-900">{total}</span> records
+                {/* {selectedRows.length > 0 && (
+                  <Button
+                    className="bg-red-600 hover:bg-red-700 text-white border-transparent text-xs py-1.5 px-3 flex items-center h-[38px]"
+                    onClick={() => setDeleteSelectedTarget(true)}
+                    loading={deleteSelectedMut.isPending}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" /> Delete Selected ({selectedRows.length})
+                  </Button>
+                )} */}
+                <Button variant="secondary" className="h-[38px]" onClick={() => setExportModal(true)}>
+                  <Download className="w-4 h-4 mr-2" /> Export
+                </Button>
+                <div className="flex items-center h-[38px]">
+                  Showing <span className="font-medium text-gray-900 mx-1">{total > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</span> of <span className="font-medium text-gray-900 mx-1">{total}</span> records
                 </div>
               </div>
 
@@ -849,7 +948,7 @@ export default function EmailMaster() {
             </div>
 
             {/* Table */}
-            <Table columns={columns} data={records} loading={isLoading} emptyMsg="No emails found" wrapperClassName="overflow-auto bg-white max-h-[calc(100vh-320px)]" />
+            <Table columns={columns} data={records} loading={isLoading || isFetching} emptyMsg="No emails found" wrapperClassName="overflow-auto bg-white max-h-[calc(100vh-320px)] relative" />
           </div>
         </div>
       )}
@@ -860,6 +959,32 @@ export default function EmailMaster() {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button className="bg-red-600 hover:bg-red-700 text-white border-transparent" onClick={() => { deleteMut.mutate(deleteTarget?.id); setDeleteTarget(null); }} loading={deleteMut.isPending}>Delete</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={deleteSelectedTarget} onClose={() => setDeleteSelectedTarget(false)} title="Confirm Delete">
+        <div className="space-y-4">
+          <p className="text-gray-700">Are you sure you want to delete {selectedRows.length} selected emails?</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setDeleteSelectedTarget(false)}>Cancel</Button>
+            <Button className="bg-red-600 hover:bg-red-700 text-white border-transparent" onClick={() => { deleteSelectedMut.mutate(selectedRows); setDeleteSelectedTarget(false); }} loading={deleteSelectedMut.isPending}>Delete</Button>
+          </div>
+        </div>
+      </Modal>
+      {/* Export Modal */}
+      <Modal open={exportModal} onClose={() => !exportMut.isPending && setExportModal(false)} title="Export Emails">
+        <div className="space-y-4">
+          <p className="text-gray-700 text-sm">Select the format you want to export the data in. Current filters will be applied to the exported file.</p>
+          <Select label="Export Format" value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}>
+            <option value="xlsx">Excel (.xlsx)</option>
+            <option value="csv">CSV (.csv)</option>
+          </Select>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setExportModal(false)} disabled={exportMut.isPending}>Cancel</Button>
+            <Button onClick={() => exportMut.mutate(exportFormat)} loading={exportMut.isPending}>
+              Download
+            </Button>
           </div>
         </div>
       </Modal>

@@ -12,5 +12,15 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'axios'],
+          utils: ['xlsx', 'date-fns', 'framer-motion']
+        }
+      }
+    }
   }
 })

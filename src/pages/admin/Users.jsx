@@ -381,13 +381,15 @@ export default function Users() {
             >
               Employee Details
             </button>
-            <button
-              onClick={() => { setActiveTab('admin'); setSelectedIds([]); }}
-              className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'admin' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
-              style={{ marginBottom: '-17px' }}
-            >
-              Admin Details
-            </button>
+            {hasFullAccess && isSuperAdmin &&(
+              <button
+                onClick={() => { setActiveTab('admin'); setSelectedIds([]); }}
+                className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'admin' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+                style={{ marginBottom: '-17px' }}
+              >
+                Admin Details
+              </button>
+            )}
             {isSuperAdmin && (
               <button
                 onClick={() => { setActiveTab('super_admin'); setSelectedIds([]); }}

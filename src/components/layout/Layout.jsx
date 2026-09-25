@@ -4,17 +4,17 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 
 const titles = {
-  '/admin/dashboard':  'Admin Dashboard',
-  '/dashboard':        'My Dashboard',
-  '/admin/users':      'Users',
-  '/admin/employees':  'Employees',
-  '/email-master':     'Email Master',
-  '/profiles':         'Profiles',
-  '/email-accounts':   'Email Accounts',
-  '/campaigns':        'Campaigns',
-  '/profile-emails':   'Profile Emails',
-  '/templates':        'Templates',
-  '/notifications':    'Notifications',
+  '/admin/dashboard': 'Admin Dashboard',
+  '/dashboard': 'My Dashboard',
+  '/admin/users': 'Users',
+  '/admin/employees': 'Employees',
+  '/email-master': 'Email Master',
+  '/profiles': 'Profiles',
+  '/email-accounts': 'Email Accounts',
+  '/campaigns': 'Campaigns',
+  '/profile-emails': 'Profile Emails',
+  '/templates': 'Templates',
+  '/notifications': 'Notifications',
 }
 
 export default function Layout({ children }) {
@@ -26,7 +26,7 @@ export default function Layout({ children }) {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <Header title={title} />
-        
+
         {/* The background pattern for that premium feel */}
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background pointer-events-none" />
 

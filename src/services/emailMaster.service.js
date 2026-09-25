@@ -23,6 +23,5 @@ export const emailMasterService = {
   markReply: (data) => api.post('/email-master/replies', data),
   updateReply: (id, data) => api.patch(`/email-master/replies/${id}`, data),
   listReplies: (params) => api.get('/email-master/replies', { params }),
+  download: (params) => api.get('/email-master/download', { params, responseType: 'blob' }),
 }
-
-

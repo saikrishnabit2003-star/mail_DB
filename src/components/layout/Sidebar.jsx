@@ -28,8 +28,16 @@ const employeeNav = [
 
 export default function Sidebar() {
   const { user } = useAuth()
-  // super_admin gets the same nav as admin
-  const nav = ['admin', 'super_admin'].includes(user?.role) ? adminNav : employeeNav
+  
+  let nav = employeeNav
+  if (['admin', 'super_admin'].includes(user?.role)) {
+    const isFullAdmin = user?.role === 'super_admin' || (user?.role === 'admin' && user?.accessLevel === 'full')
+    nav = adminNav.filter(item => {
+      if (item.to === '/email-accounts') return isFullAdmin
+      return true
+    })
+  }
+  
   const roleLabel = user?.role === 'super_admin' ? 'Super Admin' : user?.role
 
   return (

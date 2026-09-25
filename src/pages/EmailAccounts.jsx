@@ -214,12 +214,17 @@ export default function EmailAccounts() {
         <div className="flex items-center gap-4 flex-wrap">
           <p className="text-sm text-gray-500">{accounts.length} accounts</p>
           {isAdmin(user) && (
-            <SearchableSelect 
-              value={selectedEmployeeId || ''} 
-              onChange={(val) => setSelectedEmployeeId(val || null)} 
-              placeholder="Select Employee..."
-              options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
-            />
+            <div className="min-w-72">
+              <SearchableSelect 
+                value={selectedEmployeeId || ''} 
+                onChange={(val) => setSelectedEmployeeId(val || null)} 
+                placeholder="Select Employee..."
+                options={[
+                  { label: 'ALL', value: '' },
+                  ...employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))
+                ]}
+              />
+            </div>
           )}
         </div>
         {(!isPartialAdmin || isOwnData) && (

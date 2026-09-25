@@ -10,9 +10,10 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import SearchableSelect from '../components/ui/SearchableSelect'
-import { Download, ListChecks, RefreshCw, RotateCcw, Trash2, Zap } from 'lucide-react'
+import { Download, ListChecks, RefreshCw, RotateCcw, Trash2, Zap, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx'
+import { useDebounce } from '../hooks/useDebounce'
 
 export default function ProfileEmails() {
   const { user, isAdmin } = useAuth()
@@ -24,8 +25,10 @@ export default function ProfileEmails() {
   const [genLimit, setGenLimit] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
   const [clearModal, setClearModal] = useState(false)
-  const [pagination, setPagination] = useState({ page: 1, limit: 100 })
-
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 500)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
   const { data: employeesData } = useQuery({
     queryKey: ['employees'],
     queryFn: () => optionsService.getEmployees(),
@@ -48,8 +51,8 @@ export default function ProfileEmails() {
   })
 
   const { data: emailsData, isLoading } = useQuery({
-    queryKey: ['profile-emails', selectedProfile],
-    queryFn: () => profileEmailsService.list(selectedProfile, { page: 1, pageSize: 50 }),
+    queryKey: ['profile-emails', selectedProfile, page, pageSize, debouncedSearch],
+    queryFn: () => profileEmailsService.list(selectedProfile, { page, pageSize, search: debouncedSearch || undefined }),
     enabled: !!selectedProfile,
   })
 
@@ -65,14 +68,17 @@ export default function ProfileEmails() {
   const retryMut = useMutation({
     mutationFn: () => profileEmailsService.retryFailed(selectedProfile),
     onSuccess: () => { qc.invalidateQueries(['profile-emails', selectedProfile]); toast.success('Retrying failed emails') },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to retry'),
   })
   const clearMut = useMutation({
     mutationFn: () => profileEmailsService.clear(selectedProfile),
     onSuccess: () => { qc.invalidateQueries(['profile-emails', selectedProfile]); toast.success('Cleared') },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to clear'),
   })
   const deleteMut = useMutation({
     mutationFn: (id) => profileEmailsService.deleteRecord(id),
     onSuccess: () => { qc.invalidateQueries(['profile-emails', selectedProfile]); toast.success('Deleted') },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to delete'),
   })
 
   const downloadFailedEmails = () => {
@@ -103,7 +109,7 @@ export default function ProfileEmails() {
     { 
       key: 'sno',  
       label: 'S.No',
-      render: (_, row, idx) => idx + 1,
+      render: (_, row, idx) => (page - 1) * pageSize + idx + 1,
       width: '60px'
     },
     { key: 'fullName',    label: 'Name',    render: v => v || '—' },
@@ -132,9 +138,7 @@ export default function ProfileEmails() {
     {
       key: 'actions', label: '',
       render: (_, row) => (
-        (!isPartialAdmin || isOwnData) ? (
-          <button onClick={() => setDeleteId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-        ) : null
+        <button onClick={() => setDeleteId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
       )
     }
   ]
@@ -156,7 +160,10 @@ export default function ProfileEmails() {
                   setSelectedProfile('') // reset profile when employee changes
                 }}
                 placeholder={user?.role === 'super_admin' ? 'All Employees' : 'Select Employee...'}
-                options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
+                options={[
+                  { label: 'ALL', value: '' },
+                  ...employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))
+                ]}
               />
             </div>
           )}
@@ -175,24 +182,18 @@ export default function ProfileEmails() {
 
           {selectedProfile && (
             <>
-              {(!isPartialAdmin || isOwnData) && (
-                <Button size="sm" onClick={() => setGenModal(true)}>
-                  <Zap className="w-4 h-4" /> Generate List
-                </Button>
-              )}
-              {(!isPartialAdmin || isOwnData) && (
-                <Button variant="secondary" size="sm" onClick={() => retryMut.mutate()} loading={retryMut.isPending}>
-                  <RotateCcw className="w-4 h-4" /> Retry Failed
-                </Button>
-              )}
+              <Button size="sm" onClick={() => setGenModal(true)}>
+                <Zap className="w-4 h-4" /> Generate List
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => retryMut.mutate()} loading={retryMut.isPending}>
+                <RotateCcw className="w-4 h-4" /> Retry Failed
+              </Button>
               <Button variant="secondary" size="sm" onClick={downloadFailedEmails}>
                 <Download className="w-4 h-4" /> Download Failed
               </Button>
-              {(!isPartialAdmin || isOwnData) && (
-                <Button variant="danger" size="sm" onClick={() => setClearModal(true)} loading={clearMut.isPending}>
-                  <Trash2 className="w-4 h-4" /> Clear All
-                </Button>
-              )}
+              <Button variant="danger" size="sm" onClick={() => setClearModal(true)} loading={clearMut.isPending}>
+                <Trash2 className="w-4 h-4" /> Clear All
+              </Button>
             </>
           )}
         </div>
@@ -214,14 +215,61 @@ export default function ProfileEmails() {
               </div>
             ))}
           </div>
-          <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-            Showing {emails.length} of {paginatedData?.total || stats.total} total emails
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search emails..."
+                    className="pl-9 pr-4 py-2 w-full sm:w-64 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setPage(1) }}
+                  />
+                </div>
+                <div className="flex items-center text-sm text-gray-500 h-[38px]">
+                  Showing <span className="font-medium text-gray-900 mx-1">{paginatedData?.total > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, paginatedData?.total || 0)}</span> of <span className="font-medium text-gray-900 mx-1">{paginatedData?.total || stats.total || 0}</span> emails
+                </div>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center gap-4 flex-wrap mt-4 sm:mt-0">
+                <div className="flex items-center gap-2">
+                  <span>Show:</span>
+                  <select
+                    value={pageSize}
+                    onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
+                    className="border border-gray-200 rounded-md py-1 px-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
+                  >
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span>Page {page} of {paginatedData?.totalPages || 1}</span>
+                  <button
+                    onClick={() => setPage(Math.min(paginatedData?.totalPages || 1, page + 1))}
+                    disabled={page >= (paginatedData?.totalPages || 1)}
+                    className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <Table columns={columns} data={emails} loading={isLoading} emptyMsg="No emails generated yet" />
           </div>
         </div>
-      )}
-
-      {selectedProfile && (
-        <Table columns={columns} data={emails} loading={isLoading} emptyMsg="No emails generated yet" />
       )}
 
       {!selectedProfile && (

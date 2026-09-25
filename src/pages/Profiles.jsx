@@ -145,6 +145,7 @@ export default function Profiles() {
   const toggleMut = useMutation({
     mutationFn: ({ id, active }) => active ? profilesService.deactivate(id, selectedEmployeeId) : profilesService.activate(id, selectedEmployeeId),
     onSuccess: () => { qc.invalidateQueries(['profiles']); toast.success('Updated') },
+    onError: (e) => toast.error(getErrorMessage(e, 'Failed to update profile status')),
   })
 
   const testEmailMut = useMutation({
@@ -348,22 +349,25 @@ export default function Profiles() {
         <div className="flex items-center gap-4 flex-wrap">
           <p className="text-sm text-gray-500">{profiles.length} profiles</p>
           {isAdmin(user) && (
-            <SearchableSelect
-              value={selectedEmployeeId || ''}
-              onChange={val => setSelectedEmployeeId(val || null)}
-              placeholder="Select Employee..."
-              options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
-            />
+            <div className="min-w-72">
+              <SearchableSelect
+                value={selectedEmployeeId || ''}
+                onChange={val => setSelectedEmployeeId(val || null)}
+                placeholder="Select Employee..."
+                options={[
+                  { label: 'ALL', value: '' },
+                  ...employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))
+                ]}
+              />
+            </div>
           )}
           {isAdmin(user) && !employees.length && selectedEmployeeId && (
             <p className="text-xs text-gray-500">Loading employees...</p>
           )}
         </div>
-        {!isPartialAdmin || isOwnData ? (
           <Button size="sm" onClick={() => openModal('create')}>
             <Plus className="w-4 h-4" /> New Profile
           </Button>
-        ) : null}
       </div>
 
       {/* Profile cards */}
@@ -394,16 +398,12 @@ export default function Profiles() {
                 <button onClick={() => openModal('edit', p)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                   <Pencil className="w-3.5 h-3.5" /> Edit
                 </button>
-                {(!isPartialAdmin || isOwnData) && (
-                  <>
                     <button onClick={() => toggleMut.mutate({ id: p.id, active: p.isActive })} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors">
                       {p.isActive ? <><PowerOff className="w-3.5 h-3.5" /> Deactivate</> : <><Power className="w-3.5 h-3.5" /> Activate</>}
                     </button>
                     <button onClick={() => { setDeleteTarget(p); setModal('delete') }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 className="w-3.5 h-3.5" /> Delete
                     </button>
-                  </>
-                )}
               </div>
             </div>
           ))}

@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 
+// const URL = " http://127.0.0.1:8000";
 const URL = "http://13.206.26.177:5003/";
 // const URL = "http://35.154.26.148:5000/";
 // const URL = "https://rcmqshpp-8080.inc1.devtunnels.ms/";
@@ -20,7 +21,12 @@ api.interceptors.request.use((config) => {
 
 // On 401 try refresh, else logout
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    if (res.data && res.data.success === false) {
+      return Promise.reject({ response: res })
+    }
+    return res
+  },
   async (err) => {
     const original = err.config
     if (err.response?.status === 401 && !original._retry) {

@@ -9,7 +9,7 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import SearchableSelect from '../components/ui/SearchableSelect'
-import { Play, Pause, Plus, RefreshCw, Trash2, Edit2, Calendar, Clock } from 'lucide-react'
+import { Play, Pause, Plus, RefreshCw, Trash2, Edit2, Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, addMinutes } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -58,10 +58,14 @@ export default function Campaigns() {
   })
   const [scheduleErrors, setScheduleErrors] = useState({})
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['campaigns', selectedEmployeeId],
-    queryFn: () => campaignsService.list(selectedEmployeeId),
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['campaigns', selectedEmployeeId, page, pageSize],
+    queryFn: () => campaignsService.list(selectedEmployeeId, page, pageSize),
     refetchInterval: 15000,
+    placeholderData: (prev) => prev,
   })
   const { data: profilesData } = useQuery({
     queryKey: ['profiles', selectedEmployeeId],
@@ -73,8 +77,10 @@ export default function Campaigns() {
     enabled: isAdmin(user),  // Only admins can see employee list
   })
 
-  const rawCampaigns = data?.data?.data
-  const campaigns = rawCampaigns?.data ?? (Array.isArray(rawCampaigns) ? rawCampaigns : [])
+  const rawData = data?.data?.data
+  const campaigns = Array.isArray(rawData) ? rawData : (rawData?.data || [])
+  const total = rawData?.total || campaigns.length
+  const totalPages = rawData?.totalPages || Math.ceil(total / pageSize) || 1
   const profiles  = profilesData?.data?.data || []
   const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
   // Own data = no employee selected (partial admin viewing their own campaigns)
@@ -82,16 +88,25 @@ export default function Campaigns() {
 
   const startMut = useMutation({
     mutationFn: (d) => campaignsService.start(d, selectedEmployeeId),
-    onSuccess: () => { qc.invalidateQueries(['campaigns']); setModal(false); toast.success('Campaign started!') },
+    onSuccess: (res) => {
+      if (res?.data?.success === false) {
+        return toast.error(res.data.message || 'Failed to start')
+      }
+      qc.invalidateQueries(['campaigns']); 
+      setModal(false); 
+      toast.success(res?.data?.message || 'Campaign started!') 
+    },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to start'),
   })
   const pauseMut = useMutation({
     mutationFn: (id) => campaignsService.pause(id, selectedEmployeeId),
     onSuccess: () => { qc.invalidateQueries(['campaigns']); toast.success('Paused') },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to pause'),
   })
   const resumeMut = useMutation({
     mutationFn: (id) => campaignsService.resume(id, selectedEmployeeId),
     onSuccess: () => { qc.invalidateQueries(['campaigns']); toast.success('Resumed') },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to resume'),
   })
   const deleteMut = useMutation({
     mutationFn: (id) => campaignsService.delete(id, selectedEmployeeId),
@@ -105,10 +120,13 @@ export default function Campaigns() {
   })
   const scheduleMut = useMutation({
     mutationFn: (data) => campaignsService.schedule(data, selectedEmployeeId),
-    onSuccess: () => { 
+    onSuccess: (res) => { 
+      if (res?.data?.success === false) {
+        return toast.error(res.data.message || 'Failed to schedule')
+      }
       qc.invalidateQueries(['campaigns']); 
       setScheduleModal(false); 
-      toast.success('Campaign scheduled!'); 
+      toast.success(res?.data?.message || 'Campaign scheduled!'); 
       setScheduleForm({ 
         campaignName: '', 
         profileId: '', 
@@ -187,34 +205,35 @@ export default function Campaigns() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap sticky top-0 z-30 bg-white dark:bg-gray-900 py-4 -mx-6 px-6 border-b border-gray-100 dark:border-gray-800 shadow-sm">
         <div className="flex items-center gap-4 flex-wrap">
-          <p className="text-sm text-gray-500">{campaigns.length} campaigns</p>
+          <p className="text-sm text-gray-500">{total} campaigns</p>
           {isAdmin(user) && (
-            <SearchableSelect 
-              value={selectedEmployeeId || ''} 
-              onChange={(val) => setSelectedEmployeeId(val || null)} 
-              placeholder="Select Employee..."
-              options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))}
-            />
+            <div className="min-w-72">
+              <SearchableSelect 
+                value={selectedEmployeeId || ''} 
+                onChange={(val) => setSelectedEmployeeId(val || null)} 
+                placeholder="Select Employee..."
+                options={[
+                  { label: 'ALL', value: '' },
+                  ...employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))
+                ]}
+              />
+            </div>
           )}
         </div>
         <div className="flex gap-2">
-          {(!isPartialAdmin || isOwnData) && (
-            <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '' }); setModal(true) }}>
-              <Plus className="w-4 h-4" /> Start Campaign
-            </Button>
-          )}
-          {(!isPartialAdmin || isOwnData) && (
-            <Button variant="secondary" size="sm" onClick={() => { 
-              setScheduleForm({ 
-                campaignName: '', profileId: '', scheduledFor: '', scheduledTime: '', dailyLimit: '', employeeId: '', maxRetries: 3, 
-                recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '' 
-              }); 
-              setScheduleErrors({});
-              setScheduleModal(true) 
-            }}>
-              <Calendar className="w-4 h-4" /> Schedule Campaign
-            </Button>
-          )}
+          <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '' }); setModal(true) }}>
+            <Plus className="w-4 h-4" /> Start Campaign
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => { 
+            setScheduleForm({ 
+              campaignName: '', profileId: '', scheduledFor: '', scheduledTime: '', dailyLimit: '', employeeId: '', maxRetries: 3, 
+              recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '' 
+            }); 
+            setScheduleErrors({});
+            setScheduleModal(true) 
+          }}>
+            <Calendar className="w-4 h-4" /> Schedule Campaign
+          </Button>
         </div>
       </div>
 
@@ -223,7 +242,7 @@ export default function Campaigns() {
       ) : !campaigns.length ? (
         <div className="bg-card text-muted-foreground rounded-2xl border border-border p-12 text-center">No campaigns yet</div>
       ) : (
-        <div className="overflow-y-auto pr-2 custom-scrollbar pb-4" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+        <div className="overflow-y-auto pr-2 custom-scrollbar pb-4" style={{ maxHeight: 'calc(90vh - 180px)' }}>
           <motion.div 
             variants={containerVariants}
             initial="hidden"
@@ -296,26 +315,24 @@ export default function Campaigns() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-4 border-t border-border/50 flex-wrap relative z-10">
-                  {(!isPartialAdmin || isOwnData) && c.status === 'running' && (
+                  {c.status === 'running' && (
                     <Button variant="secondary" size="sm" onClick={() => pauseMut.mutate(c.id)} loading={pauseMut.isPending}>
                       <Pause className="w-3.5 h-3.5" /> Pause
                     </Button>
                   )}
-                  {(!isPartialAdmin || isOwnData) && c.status === 'paused' && (
+                  {c.status === 'paused' && (
                     <Button size="sm" onClick={() => resumeMut.mutate(c.id)} loading={resumeMut.isPending}>
                       <Play className="w-3.5 h-3.5" /> Resume
                     </Button>
                   )}
-                  {(!isPartialAdmin || isOwnData) && (
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      onClick={() => { setEditingCampaignId(c.id); setEditDailyLimit(c.dailyLimit); setEditModal(true) }}
-                    >
-                      <Edit2 className="w-3.5 h-3.5" /> Edit Limit
-                    </Button>
-                  )}
-                  {(!isPartialAdmin || isOwnData) && c.status !== 'running' && (
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={() => { setEditingCampaignId(c.id); setEditDailyLimit(c.dailyLimit); setEditModal(true) }}
+                  >
+                    <Edit2 className="w-3.5 h-3.5" /> Edit Limit
+                  </Button>
+                  {c.status !== 'running' && (
                     <Button 
                       variant="danger" 
                       size="sm" 
@@ -332,6 +349,47 @@ export default function Campaigns() {
             )
           })}
           </motion.div>
+        </div>
+      )}
+
+      {/* Pagination Footer */}
+      {!isLoading && total > 0 && (
+        <div className="p-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground bg-card rounded-b-2xl">
+          <div>
+            Showing <span className="font-medium text-foreground">{total > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</span> of <span className="font-medium text-foreground">{total}</span> campaigns
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span>Show:</span>
+              <select
+                value={pageSize}
+                onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
+                className="border border-border rounded-md py-1 px-2 bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="p-1 hover:bg-muted rounded disabled:opacity-50"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span>Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page === totalPages}
+                className="p-1 hover:bg-muted rounded disabled:opacity-50"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
