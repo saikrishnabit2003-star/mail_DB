@@ -905,9 +905,11 @@ export default function EmailMaster() {
                     <Trash2 className="w-4 h-4 mr-1" /> Delete Selected ({selectedRows.length})
                   </Button>
                 )} */}
-                <Button variant="secondary" className="h-[38px]" onClick={() => setExportModal(true)}>
-                  <Download className="w-4 h-4 mr-2" /> Export
-                </Button>
+                {user?.role === 'super_admin' && (
+                  <Button variant="secondary" className="h-[38px]" onClick={() => setExportModal(true)}>
+                    <Download className="w-4 h-4 mr-2" /> Export
+                  </Button>
+                )}
                 <div className="flex items-center h-[38px]">
                   Showing <span className="font-medium text-gray-900 mx-1">{total > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</span> of <span className="font-medium text-gray-900 mx-1">{total}</span> records
                 </div>
