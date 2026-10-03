@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   LayoutDashboard, Users, Mail, Briefcase,
   Send, FileText, Settings, Database, ListChecks,
-  ChevronRight, Zap, MessageSquare
+  ChevronRight, Zap, MessageSquare, X
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '../ui/Button'
@@ -26,7 +26,7 @@ const employeeNav = [
   { to: '/profile-emails',    label: 'Profile Emails',  icon: ListChecks },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, setIsOpen }) {
   const { user } = useAuth()
   
   let nav = employeeNav
@@ -41,16 +41,27 @@ export default function Sidebar() {
   const roleLabel = user?.role === 'super_admin' ? 'Super Admin' : user?.role
 
   return (
-    <aside className="w-64 min-h-screen bg-card border-r border-border flex flex-col shrink-0 relative z-40 transition-colors">
+    <aside className={cn(
+      "w-64 h-full bg-card border-r border-border flex flex-col shrink-0 fixed lg:relative z-40 transition-transform duration-300 ease-in-out",
+      isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+    )}>
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
-        <div className="bg-primary rounded-lg p-2 shadow-sm">
-          <Zap className="w-5 h-5 text-primary-foreground" />
+      <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="bg-primary rounded-lg p-2 shadow-sm">
+            <Zap className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <p className="font-bold text-sm leading-tight text-foreground tracking-tight">MailEngine</p>
+            <p className="text-xs text-muted-foreground capitalize font-medium">{roleLabel}</p>
+          </div>
         </div>
-        <div>
-          <p className="font-bold text-sm leading-tight text-foreground tracking-tight">MailEngine</p>
-          <p className="text-xs text-muted-foreground capitalize font-medium">{roleLabel}</p>
-        </div>
+        <button 
+          onClick={() => setIsOpen(false)}
+          className="lg:hidden p-1 text-muted-foreground hover:bg-muted rounded-md"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Nav */}
@@ -59,6 +70,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            onClick={() => setIsOpen && setIsOpen(false)}
             className={({ isActive }) =>
               cn(
                 'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group focus:outline-none',

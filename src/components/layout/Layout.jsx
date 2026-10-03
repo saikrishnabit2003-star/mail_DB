@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import { useState } from 'react'
 
 const titles = {
   '/admin/dashboard': 'Admin Dashboard',
@@ -20,12 +21,21 @@ const titles = {
 export default function Layout({ children }) {
   const { pathname } = useLocation()
   const title = titles[pathname] || 'Email Marketing'
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
     <div className="flex h-screen bg-background overflow-hidden selection:bg-primary/20 selection:text-primary">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden relative">
-        <Header title={title} />
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden" 
+          onClick={() => setIsSidebarOpen(false)} 
+        />
+      )}
+
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      <div className="flex-1 flex flex-col overflow-hidden relative min-w-0">
+        <Header title={title} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
 
         {/* The background pattern for that premium feel */}
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background pointer-events-none" />

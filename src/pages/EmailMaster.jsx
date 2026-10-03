@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { emailMasterService } from '../services/emailMaster.service'
@@ -10,7 +10,8 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import SearchableSelect from '../components/ui/SearchableSelect'
 import MultiSelect from '../components/ui/MultiSelect'
-import { Upload, RefreshCw, Trash2, Users, ChevronLeft, ChevronRight, Search, Download, ChevronUp, ChevronDown } from 'lucide-react'
+import DateRangePicker from '../components/ui/DateRangePicker'
+import { Upload, RefreshCw, Trash2, Users, ChevronLeft, ChevronRight, Search, Download, ChevronUp, ChevronDown, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
@@ -58,6 +59,22 @@ export default function EmailMaster() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteSelectedTarget, setDeleteSelectedTarget] = useState(false)
+  const [deleteStartDate, setDeleteStartDate] = useState('')
+  const [deleteEndDate, setDeleteEndDate] = useState('')
+  const [deleteDateRangeModal, setDeleteDateRangeModal] = useState(false)
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const datePickerRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+        setShowDatePicker(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
   const [selectedRows, setSelectedRows] = useState([])
   const [exportModal, setExportModal] = useState(false)
   const [exportFormat, setExportFormat] = useState('xlsx')
@@ -110,7 +127,7 @@ export default function EmailMaster() {
       startDate: historyPreset === 'custom' ? historyStartDate : undefined,
       endDate: historyPreset === 'custom' ? historyEndDate : undefined,
       page: historyPage,
-      limit: historyPageSize
+      page_size: historyPageSize
     }),
     enabled: activeTab === 'history' && isAdmin(user),
     retry: 0,
@@ -192,6 +209,25 @@ export default function EmailMaster() {
       toast.success('Selected emails deleted')
     },
     onError: (e) => toast.error(getErrorMessage(e, 'Failed to delete selected emails or Dont have permission to delete it ')),
+  })
+
+  const deleteByDateRangeMut = useMutation({
+    mutationFn: () => {
+      const formatToDDMMYYYY = (dateStr) => {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-');
+        return `${d}-${m}-${y}`;
+      }
+      return emailMasterService.deleteByDateRange(formatToDDMMYYYY(deleteStartDate), formatToDDMMYYYY(deleteEndDate))
+    },
+    onSuccess: () => {
+      qc.invalidateQueries(['email-master'])
+      toast.success('Emails deleted successfully')
+      setDeleteDateRangeModal(false)
+      setDeleteStartDate('')
+      setDeleteEndDate('')
+    },
+    onError: (e) => toast.error(getErrorMessage(e, 'Failed to delete by date range')),
   })
 
   const exportMut = useMutation({
@@ -475,7 +511,7 @@ export default function EmailMaster() {
   return (
     <div className="space-y-5">
       {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-100/50 p-1 rounded-xl w-fit border border-gray-200">
+      <div className="flex flex-wrap gap-1 sm:space-x-1 sm:gap-0 bg-gray-100/50 p-1 rounded-xl w-full sm:w-fit border border-gray-200">
         <button
           onClick={() => setActiveTab('upload')}
           className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'upload'
@@ -760,7 +796,7 @@ export default function EmailMaster() {
               wrapperClassName="overflow-auto bg-white max-h-[500px]"
             />
             {/* Pagination Footer for History */}
-            <div className="p-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500 bg-white">
+            <div className="p-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 bg-white">
               <div>
                 Showing <span className="font-medium text-gray-900">{historyTotal > 0 ? (historyPage - 1) * historyPageSize + 1 : 0}-{Math.min(historyPage * historyPageSize, historyTotal)}</span> of <span className="font-medium text-gray-900">{historyTotal}</span> logs
               </div>
@@ -906,9 +942,47 @@ export default function EmailMaster() {
                   </Button>
                 )} */}
                 {user?.role === 'super_admin' && (
-                  <Button variant="secondary" className="h-[38px]" onClick={() => setExportModal(true)}>
-                    <Download className="w-4 h-4 mr-2" /> Export
-                  </Button>
+                  <>
+                    <div className="flex items-center gap-2 relative" ref={datePickerRef}>
+                      <div 
+                        className="w-[200px] bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-700 cursor-pointer flex items-center justify-between hover:border-primary/50 transition-colors h-[38px]"
+                        onClick={() => setShowDatePicker(!showDatePicker)}
+                      >
+                        <span>
+                          {deleteStartDate 
+                            ? `${format(new Date(deleteStartDate), 'MMM d, yyyy')} - ${deleteEndDate ? format(new Date(deleteEndDate), 'MMM d, yyyy') : '...'}` 
+                            : 'Select Date to Delete'}
+                        </span>
+                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                      </div>
+                      {showDatePicker && (
+                        <div className="absolute top-full left-0 sm:right-0 sm:left-auto mt-2 z-50">
+                          <DateRangePicker 
+                            startDate={deleteStartDate} 
+                            endDate={deleteEndDate} 
+                            onChange={(dates) => {
+                              setDeleteStartDate(dates.start);
+                              setDeleteEndDate(dates.end);
+                              if (dates.start && dates.end) {
+                                setShowDatePicker(false);
+                              }
+                            }} 
+                          />
+                        </div>
+                      )}
+                      {deleteStartDate && deleteEndDate && (
+                        <Button 
+                          className="bg-red-600 hover:bg-red-700 text-white border-transparent text-xs h-[38px] px-3"
+                          onClick={() => setDeleteDateRangeModal(true)}
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" /> Delete
+                        </Button>
+                      )}
+                    </div>
+                    <Button variant="secondary" className="h-[38px]" onClick={() => setExportModal(true)}>
+                      <Download className="w-4 h-4 mr-2" /> Export
+                    </Button>
+                  </>
                 )}
                 <div className="flex items-center h-[38px]">
                   Showing <span className="font-medium text-gray-900 mx-1">{total > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</span> of <span className="font-medium text-gray-900 mx-1">{total}</span> records
@@ -971,6 +1045,16 @@ export default function EmailMaster() {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setDeleteSelectedTarget(false)}>Cancel</Button>
             <Button className="bg-red-600 hover:bg-red-700 text-white border-transparent" onClick={() => { deleteSelectedMut.mutate(selectedRows); setDeleteSelectedTarget(false); }} loading={deleteSelectedMut.isPending}>Delete</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={deleteDateRangeModal} onClose={() => setDeleteDateRangeModal(false)} title="Confirm Delete By Date">
+        <div className="space-y-4">
+          <p className="text-gray-700">Are you sure you want to delete all emails uploaded between <strong>{deleteStartDate}</strong> and <strong>{deleteEndDate}</strong>?</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setDeleteDateRangeModal(false)}>Cancel</Button>
+            <Button className="bg-red-600 hover:bg-red-700 text-white border-transparent" onClick={() => deleteByDateRangeMut.mutate()} loading={deleteByDateRangeMut.isPending}>Delete</Button>
           </div>
         </div>
       </Modal>

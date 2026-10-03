@@ -86,10 +86,7 @@ export default function ProfileReplies() {
       { value: 'other', label: 'Other' },
       { value: 'replied', label: 'Replied' }
     ],
-    replyMarkedByNames: apiOptions?.replyMarkedByNames || [
-      { value: 'VHK', label: 'VHK' },
-      { value: 'Vinoth Admin', label: 'Vinoth Admin' }
-    ],
+    replyMarkedByNames: apiOptions?.replyMarkedByNames,
     updatedTimePresets: apiOptions?.updatedTimePresets || [
       { value: 'last_7_days', label: 'Last 7 days' },
       { value: 'last_15_days', label: 'Last 15 days' },
@@ -149,7 +146,7 @@ export default function ProfileReplies() {
         data: {
           hasReply: true,
           reason: formData.reason,
-          customReason: formData.reason === 'other' ? formData.customReason : undefined
+          customReason:formData.customReason 
         }
       })
     } else {
@@ -272,17 +269,20 @@ export default function ProfileReplies() {
               ]}
             />
           </div>
-          {formData.reason === 'other' && (
+          
             <div className="w-full sm:w-[320px]">
-              <Input 
-                label="Custom Reason (Optional)" 
-                type="text" 
-                placeholder="e.g. Out of office"
-                value={formData.customReason}
-                onChange={(e) => setFormData({ ...formData, customReason: e.target.value })}
-              />
+              <div className="space-y-1.5 mt-6">
+                <label className="block text-sm font-medium text-gray-700">Custom Reason (Optional)</label>
+                <textarea
+                  rows={1}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 text-sm transition-colors outline-none resize-y max-h-24"
+                  placeholder="e.g. Out of office"
+                  value={formData.customReason}
+                  onChange={(e) => setFormData({ ...formData, customReason: e.target.value })}
+                />
+              </div>
             </div>
-          )}
+          
           
           <div className="flex items-center justify-end gap-3 shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
             {editId && (
@@ -323,7 +323,7 @@ export default function ProfileReplies() {
                 value={filters.replyMarkedByName}
                 onChange={val => setFilters(f => ({ ...f, replyMarkedByName: val || '' }))}
                 placeholder="All Users"
-                options={filterOptions.replyMarkedByNames.map(o => ({ label: o.label, value: o.value }))}
+                options={(filterOptions.replyMarkedByNames || []).map(o => ({ label: o.label, value: o.value }))}
               />
             </div>
             <div className="flex-1 min-w-[140px]">

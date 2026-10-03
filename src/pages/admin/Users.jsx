@@ -223,7 +223,7 @@ export default function Users() {
 
   const openEdit = (user) => {
     setSelected(user)
-    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '', accessLevel: user.accessLevel || 'partial', phoneNumber: user.phoneNumber || '' })
+    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '', accessLevel: user.accessLevel || 'partial', phoneNumber: user.phoneNumber || '', role: user.role })
     setModal('edit')
   }
 
@@ -501,7 +501,18 @@ export default function Users() {
             options={branchOptions}
             placeholder="Select a branch..."
           />
-          {selected?.role === 'admin' && (
+          {isSuperAdmin && selected?.role !== 'super_admin' && (
+            <SearchableSelect
+              label="Role"
+              value={form.role || 'employee'}
+              onChange={val => setForm(f => ({ ...f, role: val }))}
+              options={[
+                { label: 'Employee', value: 'employee' },
+                { label: 'Admin', value: 'admin' }
+              ]}
+            />
+          )}
+          {(form.role === 'admin') && (
             <SearchableSelect
               label="Access Level"
               value={form.accessLevel || 'partial'}
@@ -512,7 +523,7 @@ export default function Users() {
               ]}
             />
           )}
-          {isSuperAdmin && selected?.role === 'employee' && (
+          {isSuperAdmin && form.role === 'employee' && (
             <SearchableSelect
               label="Assign to Admin"
               value={form.assignedToAdmin || ''}
@@ -531,7 +542,7 @@ export default function Users() {
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
             <Button onClick={() => {
               const payload = { ...form };
-              if (selected?.role !== 'admin') {
+              if (payload.role !== 'admin') {
                 delete payload.accessLevel;
               }
               if (!payload.phoneNumber || payload.phoneNumber.trim() === '') {

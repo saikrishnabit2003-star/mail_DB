@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { Settings, Bell, LogOut, ChevronDown } from 'lucide-react'
+import { Settings, Bell, LogOut, ChevronDown, Menu } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsService } from '../../services/notifications.service'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
 
-export default function Header({ title }) {
+export default function Header({ title, toggleSidebar }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -89,8 +89,16 @@ export default function Header({ title }) {
   }
 
   return (
-    <header className="h-16 bg-background border-b border-border flex items-center justify-between px-6 shrink-0 sticky top-0 z-30">
-      <h1 className="text-xl font-semibold text-foreground tracking-tight">{title}</h1>
+    <header className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0 sticky top-0 z-30">
+      <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+        <button 
+          onClick={toggleSidebar}
+          className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors focus:outline-none shrink-0"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight truncate">{title}</h1>
+      </div>
 
       <div className="flex items-center gap-3">
         {user?.role === 'super_admin' && (
