@@ -14,18 +14,6 @@ import { format } from 'date-fns'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
-}
-const itemVariants = {
-  hidden: { opacity: 0, y: 24, rotateX: -15, transformPerspective: 1000 },
-  show: {
-    opacity: 1, y: 0, rotateX: 0, transformPerspective: 1000,
-    transition: { type: 'spring', stiffness: 260, damping: 24 }
-  }
-}
-
 const FilterDropdown = ({ title, value, onChange, options }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -52,12 +40,11 @@ const FilterDropdown = ({ title, value, onChange, options }) => {
         className={`w-3.5 h-3.5 ${value ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
       />
-      <AnimatePresence>
       {open && (
+        // folds open from the top edge (never starts invisible)
         <motion.div
-          initial={reduce ? false : { opacity: 0, rotateX: -30, y: -4 }}
-          animate={{ opacity: 1, rotateX: 0, y: 0 }}
-          exit={reduce ? { opacity: 0 } : { opacity: 0, rotateX: -30, y: -4 }}
+          initial={reduce ? false : { rotateX: -30, y: -4 }}
+          animate={{ rotateX: 0, y: 0 }}
           transition={{ duration: 0.18 }}
           style={{ transformPerspective: 700, transformOrigin: 'top left' }}
           className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-50 p-1.5 min-w-[140px]" onClick={e => e.stopPropagation()}>
@@ -93,7 +80,6 @@ const FilterDropdown = ({ title, value, onChange, options }) => {
           </ul>
         </motion.div>
       )}
-      </AnimatePresence>
     </div>
   )
 }
@@ -254,7 +240,7 @@ export default function Users() {
 
   const openEdit = (user) => {
     setSelected(user)
-    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '', accessLevel: user.accessLevel || 'partial', phoneNumber: user.phoneNumber || '' })
+    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '', accessLevel: user.accessLevel || 'partial', phoneNumber: user.phoneNumber || '', role: user.role })
     setModal('edit')
   }
 
@@ -404,15 +390,28 @@ export default function Users() {
   ] : columns
 
   const tabHover = reduce ? undefined : { y: -2 }
+  // panel flips in on load (never starts invisible)
+  const flip = reduce
+    ? {}
+    : {
+        initial: { rotateX: -12, y: 16 },
+        animate: { rotateX: 0, y: 0 },
+        transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+        style: { transformPerspective: 1000, transformOrigin: 'top center' },
+      }
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="show" className="">
+    <div className="space-y-5">
       {/* Light panel behind tabs + table */}
       <motion.div
-        variants={itemVariants}
-        className="rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 px-5 py-3 space-y-3 shadow-inner"
+        {...flip}
+        className="relative z-30 rounded-3xl border border-white/60 bg-gradient-to-br from-sky-100 via-indigo-100/70 to-cyan-100 p-5 space-y-5 shadow-inner"
       >
-        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+        {/* soft light orbs */}
+        <motion.div animate={reduce ? {} : { x: [0, -20, 0], y: [0, 15, 0] }} transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute right-10 top-4 h-64 w-64 rounded-full bg-white/50 blur-3xl" />
+        <motion.div animate={reduce ? {} : { x: [0, 20, 0], y: [0, -15, 0] }} transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute bottom-6 left-10 h-56 w-56 rounded-full bg-violet-200/40 blur-3xl" />
+
+        <div className="relative flex items-center justify-between border-b border-gray-200 pb-4">
           <div>
             <div className="flex gap-6 mb-2">
               <motion.button
@@ -446,7 +445,7 @@ export default function Users() {
             </div>
             <p className="text-sm text-gray-500 mt-10">{filteredUsers.length} users</p>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             {hasFullAccess && activeTab === 'employee' && selectedIds.length > 0 && (
               <Button
                 size="sm"
@@ -467,7 +466,9 @@ export default function Users() {
           </div>
         </div>
 
-        <Table columns={displayColumns} data={filteredUsers} loading={isLoading} emptyMsg="No users found" />
+        <div className="relative">
+          <Table columns={displayColumns} data={filteredUsers} loading={isLoading} emptyMsg="No users found" />
+        </div>
       </motion.div>
 
       {/* Create modal */}
@@ -548,7 +549,18 @@ export default function Users() {
             options={branchOptions}
             placeholder="Select a branch..."
           />
-          {selected?.role === 'admin' && (
+          {isSuperAdmin && selected?.role !== 'super_admin' && (
+            <SearchableSelect
+              label="Role"
+              value={form.role || 'employee'}
+              onChange={val => setForm(f => ({ ...f, role: val }))}
+              options={[
+                { label: 'Employee', value: 'employee' },
+                { label: 'Admin', value: 'admin' }
+              ]}
+            />
+          )}
+          {(form.role === 'admin') && (
             <SearchableSelect
               label="Access Level"
               value={form.accessLevel || 'partial'}
@@ -559,7 +571,7 @@ export default function Users() {
               ]}
             />
           )}
-          {isSuperAdmin && selected?.role === 'employee' && (
+          {isSuperAdmin && form.role === 'employee' && (
             <SearchableSelect
               label="Assign to Admin"
               value={form.assignedToAdmin || ''}
@@ -578,7 +590,7 @@ export default function Users() {
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
             <Button onClick={() => {
               const payload = { ...form };
-              if (selected?.role !== 'admin') {
+              if (payload.role !== 'admin') {
                 delete payload.accessLevel;
               }
               if (!payload.phoneNumber || payload.phoneNumber.trim() === '') {
@@ -623,6 +635,6 @@ export default function Users() {
           </div>
         </div>
       </Modal>
-    </motion.div>
+    </div>
   )
 }

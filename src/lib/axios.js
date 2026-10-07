@@ -3,8 +3,8 @@ import axios from 'axios'
 
 // const URL = " http://127.0.0.1:8000";
 // const URL = "http://13.206.26.177:5003/";
-const URL = "http://192.168.1.20:8000/";
-// const URL = "http://35.154.26.148:5000/";
+// const URL = "http://192.168.1.20:8000/";
+const URL = "http://35.154.26.148:5000/";
 // const URL = "https://rcmqshpp-8080.inc1.devtunnels.ms/";
 // const URL = "http://localhost:8000/";
 const api = axios.create({

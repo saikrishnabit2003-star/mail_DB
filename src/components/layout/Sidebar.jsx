@@ -150,7 +150,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground uppercase shadow-md cursor-default"
               style={{ transformStyle: 'preserve-3d' }}
               whileHover={reduce ? undefined : { rotateY: 360, scale: 1.1 }}
-              transition={{ duration: 1, ease: 'easeIn' }}
+              transition={{ duration: 0.3, ease: 'easeIn' }}
             >
               {user?.name?.[0] || 'U'}
             </motion.div>

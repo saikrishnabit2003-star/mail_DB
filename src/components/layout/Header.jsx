@@ -243,7 +243,7 @@ export default function Header({ title, toggleSidebar }) {
           >
             <motion.div
               whileHover={reduce ? undefined : { rotateY: 360 }}
-              transition={{ duration: 0.7, ease: 'easeInOut' }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
               style={{ transformPerspective: 300 }}
               className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold uppercase shadow-sm"
             >

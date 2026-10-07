@@ -244,8 +244,8 @@ export default function ProfileReplies() {
             : 'Mark matching email-master records as having received a reply.'}
         </p> */}
         
-        <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-4">
-          <div className="w-full sm:w-[320px]">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,1.3fr)_auto] items-start gap-4">
+          <div className="min-w-0">
             <Input 
               label="Email Address *" 
               type="email" 
@@ -256,7 +256,7 @@ export default function ProfileReplies() {
               disabled={!!editId}
             />
           </div>
-          <div className="w-full sm:w-[200px]">
+          <div className="min-w-0">
             <SearchableSelect 
               label="Reason *" 
               value={formData.reason}
@@ -270,21 +270,20 @@ export default function ProfileReplies() {
             />
           </div>
           
-            <div className="w-full sm:w-[320px]">
-              <div className="space-y-1.5 mt-6">
-                <label className="block text-sm font-medium text-gray-700">Custom Reason (Optional)</label>
-                <textarea
-                  rows={1}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 text-sm transition-colors outline-none resize-y max-h-24"
-                  placeholder="e.g. Out of office"
-                  value={formData.customReason}
-                  onChange={(e) => setFormData({ ...formData, customReason: e.target.value })}
-                />
-              </div>
+          <div className="min-w-0">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-gray-700">Custom Reason (Optional)</label>
+              <textarea
+                rows={1}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 text-sm transition-colors outline-none resize-y max-h-24 min-h-[42px]"
+                placeholder="e.g. Out of office"
+                value={formData.customReason}
+                onChange={(e) => setFormData({ ...formData, customReason: e.target.value })}
+              />
             </div>
+          </div>
           
-          
-          <div className="flex items-center justify-end gap-3 shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+          <div className="flex items-center justify-end gap-3 shrink-0 w-full xl:w-auto self-end -mt-1">
             {editId && (
               <Button type="button" variant="outline" onClick={handleCancelEdit} disabled={updateReplyMut.isPending}>
                 <X className="w-4 h-4 mr-2" /> Cancel
