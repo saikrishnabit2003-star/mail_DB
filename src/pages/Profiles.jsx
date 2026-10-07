@@ -14,6 +14,7 @@ import { emailMasterService } from '../services/emailMaster.service'
 import { Plus, Pencil, Trash2, Power, PowerOff, Upload, X, Info, LayoutTemplate, Filter, Settings2, University } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
+import { motion, useReducedMotion } from 'framer-motion'
 import ReactQuill, { Quill } from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 
@@ -58,8 +59,23 @@ const quillModules = {
   ]
 }
 
+// ---- 3D animation variants (visual only) ----
+// profile cards flip up one after another
+const gridVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.07 } },
+}
+const cardVariants = {
+  hidden: { opacity: 0, y: 24, rotateX: -15, transformPerspective: 1000 },
+  show: {
+    opacity: 1, y: 0, rotateX: 0, transformPerspective: 1000,
+    transition: { type: 'spring', stiffness: 260, damping: 24 },
+  },
+}
+
 export default function Profiles() {
   const { user, isAdmin } = useAuth()
+  const reduce = useReducedMotion()
   const isPartialAdmin = user?.role === 'admin' && user?.accessLevel === 'partial'
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
@@ -76,6 +92,21 @@ export default function Profiles() {
   const [testTemplateName, setTestTemplateName] = useState('')
   const [filterLimitError, setFilterLimitError] = useState(null)
   const [templateErrors, setTemplateErrors] = useState([])
+
+  // 3D helpers: modal tab content flips in each time its tab becomes active
+  const paneVariants = {
+    hide: reduce ? { opacity: 0 } : { opacity: 0, rotateX: -14, y: 18 },
+    show: reduce ? { opacity: 1 } : { opacity: 1, rotateX: 0, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
+  }
+  const pane = (id, cls) => ({
+    className: activeTab === id ? cls : 'hidden',
+    variants: paneVariants,
+    initial: false,
+    animate: activeTab === id ? 'show' : 'hide',
+    style: { transformPerspective: 1000, transformOrigin: 'top center' },
+  })
+  const btnHover = reduce ? undefined : { y: -2, rotateX: 10 }
+  const tabHover = reduce ? undefined : { y: -2, rotateX: 8 }
 
   // Fetch employees list for admin dropdown
   const { data: employeesData } = useQuery({
@@ -344,7 +375,7 @@ export default function Profiles() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 p-5 shadow-inner">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">
           <p className="text-sm text-gray-500">{profiles.length} profiles</p>
@@ -365,9 +396,11 @@ export default function Profiles() {
             <p className="text-xs text-gray-500">Loading employees...</p>
           )}
         </div>
-          <Button size="sm" onClick={() => openModal('create')}>
-            <Plus className="w-4 h-4" /> New Profile
-          </Button>
+          <motion.div whileHover={reduce ? undefined : { y: -3, rotateX: 8, scale: 1.04 }} style={{ transformPerspective: 600 }}>
+            <Button size="sm" onClick={() => openModal('create')}>
+              <Plus className="w-4 h-4" /> New Profile
+            </Button>
+          </motion.div>
       </div>
 
       {/* Profile cards */}
@@ -376,9 +409,19 @@ export default function Profiles() {
       ) : !profiles.length ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">No profiles yet. Create one to get started.</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <motion.div
+          variants={gridVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+        >
           {profiles.map(p => (
-            <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+            <motion.div
+              key={p.id}
+              variants={cardVariants}
+              whileHover={reduce ? undefined : { y: -6, rotateX: 4, scale: 1.01 }}
+              className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-xl hover:shadow-blue-900/10 transition-shadow"
+            >
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-semibold text-gray-900">{p.profileName}</h3>
@@ -392,22 +435,24 @@ export default function Profiles() {
                 <p className="text-xs text-gray-500"><span className="font-medium">Daily Limit:</span> {p.sendingOptions?.dailyLimit}/day</p>
                 <p className="text-xs text-gray-500"><span className="font-medium">Filter Limit:</span> {p.filterLimit > 0 ? p.filterLimit : 'Unlimited'}</p>
                 <p className="text-xs text-gray-500"><span className="font-medium">Delay:</span> {p.sendingOptions?.delayMin}–{p.sendingOptions?.delayMax}s</p>
+                <p className="text-xs text-gray-500"><span className="font-medium">Profile Handler:</span> {(p.employeeName || "---")}</p>
+                {p.assignedAdmin != ""? (<p className="text-xs text-gray-500"><span className="font-medium">Profile Admin:</span> {(p.assignedAdmin || "---")}</p>):(<p className="text-xs text-gray-500"><span className="font-medium">Profile Admin:</span> {"-"}</p>)}
               </div>
 
               <div className="flex items-center gap-1 pt-3 border-t border-gray-50">
-                <button onClick={() => openModal('edit', p)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                <motion.button whileHover={btnHover} style={{ transformPerspective: 300 }} onClick={() => openModal('edit', p)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
                   <Pencil className="w-3.5 h-3.5" /> Edit
-                </button>
-                    <button onClick={() => toggleMut.mutate({ id: p.id, active: p.isActive })} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors">
+                </motion.button>
+                    <motion.button whileHover={btnHover} style={{ transformPerspective: 300 }} onClick={() => toggleMut.mutate({ id: p.id, active: p.isActive })} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors">
                       {p.isActive ? <><PowerOff className="w-3.5 h-3.5" /> Deactivate</> : <><Power className="w-3.5 h-3.5" /> Activate</>}
-                    </button>
-                    <button onClick={() => { setDeleteTarget(p); setModal('delete') }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    </motion.button>
+                    <motion.button whileHover={btnHover} style={{ transformPerspective: 300 }} onClick={() => { setDeleteTarget(p); setModal('delete') }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 className="w-3.5 h-3.5" /> Delete
-                    </button>
+                    </motion.button>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Create/Edit Modal */}
@@ -428,10 +473,12 @@ export default function Profiles() {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
               return (
-                <button
+                <motion.button
                   key={tab.id}
+                  whileHover={tabHover}
+                  style={{ transformPerspective: 400 }}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all whitespace-nowrap
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
                     ${isActive
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
@@ -439,7 +486,7 @@ export default function Profiles() {
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
-                </button>
+                </motion.button>
               )
             })}
           </div>
@@ -448,7 +495,7 @@ export default function Profiles() {
           <div className="flex-1 overflow-y-auto space-y-4">
 
             {/* INFO TAB */}
-            <div className={activeTab === 'info' ? 'space-y-4' : 'hidden'}>
+            <motion.div {...pane('info', 'space-y-4')}>
               {isAdmin(user) && (
                 <SearchableSelect
                   label={modal === 'edit' ? 'Employee (reassign)' : 'Employee'}
@@ -525,10 +572,10 @@ export default function Profiles() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
 
             {/* TEMPLATES TAB */}
-            <div className={activeTab === 'templates' ? 'space-y-4' : 'hidden'}>
+            <motion.div {...pane('templates', 'space-y-4')}>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-500">up to 5 templates</p>
                 {form.templates.length < 5 && (
@@ -540,7 +587,11 @@ export default function Profiles() {
               {form.templates.map((t, idx) => (
                 <div key={idx} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-800">Template {idx + 1}</span>
+                    <div className='flex flex-col'>
+                      <span className="text-sm font-semibold text-gray-800">Template {idx + 1} </span>
+                      <span className="text-xs font-light text-gray-500">Use [name] for the client’s name</span>
+                    </div>
+                    
                     {form.templates.length > 1 && (
                       <button
                         onClick={() => removeTemplate(idx)}
@@ -551,7 +602,7 @@ export default function Profiles() {
                     )}
                   </div>
                   <Input
-                    placeholder="Template name (e.g., Aggressive, Friendly)"
+                    placeholder="Template name"
                     value={t.name}
                     onChange={(e) => {
                       updateTemplate(idx, 'name', e.target.value);
@@ -591,7 +642,7 @@ export default function Profiles() {
                               return newErrs;
                             });
                           }}
-                          placeholder="Email body content"
+                          placeholder={`Dear [name],\n\nMail content\n\nRegards,`}
                           className="text-sm [&_.ql-container]:min-h-[140px] [&_.ql-editor]:min-h-[140px] [&_.ql-editor]:text-sm [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-container]:border-0"
                         />
                       )}
@@ -600,10 +651,10 @@ export default function Profiles() {
                   </div>
                 </div>
               ))}
-            </div>
+            </motion.div>
 
             {/* FILTERS TAB */}
-            <div className={activeTab === 'filters' ? 'space-y-4' : 'hidden'}>
+            <motion.div {...pane('filters', 'space-y-4')}>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-500">Narrow which contacts receive this profile.</p>
                 <button
@@ -717,37 +768,37 @@ export default function Profiles() {
               </div>
 
               <p className="text-xs text-gray-400">Separate multiple values with commas.</p>
-            </div>
+            </motion.div>
 
             {/* SENDING OPTIONS TAB */}
-            <div className={activeTab === 'sending' ? 'space-y-5' : 'hidden'}>
+            <motion.div {...pane('sending', 'space-y-5')}>
               <p className="text-sm text-gray-500">Configure rate limits and delays for this profile.</p>
 
               <div className="grid grid-cols-3 gap-4">
-                <div className="border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50 hover:bg-white transition-colors">
+                <motion.div whileHover={reduce ? undefined : { y: -4 }} className="border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50 hover:bg-white hover:shadow-lg transition-colors">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Daily Limit</p>
                   <Input type="number" value={form.sendingOptions?.dailyLimit} onChange={fNum('sendingOptions', 'dailyLimit')} />
                   <p className="text-xs text-gray-400 text-center">emails / day</p>
-                </div>
-                <div className="border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50 hover:bg-white transition-colors">
+                </motion.div>
+                <motion.div whileHover={reduce ? undefined : { y: -4 }} className="border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50 hover:bg-white hover:shadow-lg transition-colors">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Min Delay</p>
                   <Input type="number" value={form.sendingOptions?.delayMin} onChange={fNum('sendingOptions', 'delayMin')} />
                   <p className="text-xs text-gray-400 text-center">seconds</p>
-                </div>
-                <div className="border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50 hover:bg-white transition-colors">
+                </motion.div>
+                <motion.div whileHover={reduce ? undefined : { y: -4 }} className="border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50 hover:bg-white hover:shadow-lg transition-colors">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Max Delay</p>
                   <Input type="number" value={form.sendingOptions?.delayMax} onChange={fNum('sendingOptions', 'delayMax')} />
                   <p className="text-xs text-gray-400 text-center">seconds</p>
-                </div>
+                </motion.div>
               </div>
 
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
                 <strong>Tip:</strong> A random delay between Min and Max is used between each email to avoid spam filters.
               </div>
-            </div>
+            </motion.div>
 
             {/* TEST TAB */}
-            <div className={activeTab === 'test' ? 'space-y-5' : 'hidden'}>
+            <motion.div {...pane('test', 'space-y-5')}>
               <p className="text-sm text-gray-500">Send a test email to verify your profile settings.</p>
               {!selected?.id ? (
                 <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
@@ -792,7 +843,7 @@ export default function Profiles() {
                   </div>
                 </div>
               )}
-            </div>
+            </motion.div>
           </div>
 
           {/* ── Footer ── */}

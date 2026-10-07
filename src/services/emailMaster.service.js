@@ -25,4 +25,5 @@ export const emailMasterService = {
   listReplies: (params) => api.get('/email-master/replies', { params }),
   download: (params) => api.get('/email-master/download', { params, responseType: 'blob' }),
   deleteByDateRange: (startDate, endDate) => api.delete(`/email-master/admin/delete-by-upload-date-range`, { params: { startDate, endDate } }),
+  getReplyStats: () => api.get('/email-master/stats/replies'),
 }

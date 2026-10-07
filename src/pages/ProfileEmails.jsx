@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { profileEmailsService } from '../services/profileEmails.service'
 import { profilesService } from '../services/profiles.service'
@@ -10,13 +10,63 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import SearchableSelect from '../components/ui/SearchableSelect'
-import { Download, ListChecks, RefreshCw, RotateCcw, Trash2, Zap, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Download, ListChecks, RefreshCw, RotateCcw, Trash2, Zap, Search, ChevronLeft, ChevronRight, Clock, CheckCircle, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx'
+import { motion, animate, useReducedMotion } from 'framer-motion'
 import { useDebounce } from '../hooks/useDebounce'
+
+// ---- visual-only helpers (nothing starts invisible, so nothing can get stuck hidden) ----
+const gridVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08 } },
+}
+const cardVariants = {
+  hidden: { y: 24, rotateX: -15, transformPerspective: 1000 },
+  show: { y: 0, rotateX: 0, transformPerspective: 1000, transition: { type: 'spring', stiffness: 260, damping: 24 } },
+}
+
+// number counts up from 0
+const CountUp = ({ value }) => {
+  const reduce = useReducedMotion()
+  const [n, setN] = useState(value)
+  useEffect(() => {
+    if (reduce) { setN(value); return }
+    const c = animate(0, value, { duration: 1, ease: 'easeOut', onUpdate: v => setN(Math.round(v)) })
+    return () => c.stop()
+  }, [value, reduce])
+  return <>{n}</>
+}
+
+// light stat card: gradient icon tile + count-up + 3D hover
+const StatTile = ({ label, value, icon: Icon, gradient, text }) => {
+  const reduce = useReducedMotion()
+  return (
+    <motion.div variants={cardVariants}>
+      <motion.div
+        whileHover={reduce ? undefined : { y: -6, rotateX: 5, scale: 1.02 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        style={{ transformPerspective: 800 }}
+        className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 p-5 shadow-lg shadow-blue-900/5 hover:shadow-xl hover:shadow-blue-900/15 transition-shadow"
+      >
+        <div className={`absolute -top-8 -right-8 h-24 w-24 rounded-full bg-gradient-to-br ${gradient} opacity-10`} />
+        <motion.div
+          animate={reduce ? {} : { y: [0, -3, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          className={`mb-3 inline-flex rounded-xl bg-gradient-to-br p-3 text-white shadow-lg ${gradient}`}
+        >
+          <Icon className="w-5 h-5" />
+        </motion.div>
+        <p className="text-sm font-medium text-slate-500">{label}</p>
+        <p className={`text-3xl font-bold ${text}`}><CountUp value={value ?? 0} /></p>
+      </motion.div>
+    </motion.div>
+  )
+}
 
 export default function ProfileEmails() {
   const { user, isAdmin } = useAuth()
+  const reduce = useReducedMotion()
   const isPartialAdmin = user?.role === 'admin' && user?.accessLevel === 'partial'
   const qc = useQueryClient()
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null)
@@ -29,6 +79,18 @@ export default function ProfileEmails() {
   const debouncedSearch = useDebounce(search, 500)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
+
+  // cards flip in on load; buttons tilt on hover
+  const flip = reduce
+    ? {}
+    : {
+        initial: { rotateX: -12, y: 16 },
+        animate: { rotateX: 0, y: 0 },
+        transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+        style: { transformPerspective: 1000, transformOrigin: 'top center' },
+      }
+  const btnHover = reduce ? {} : { whileHover: { y: -3, rotateX: 8, scale: 1.04 }, style: { transformPerspective: 600 } }
+
   const { data: employeesData } = useQuery({
     queryKey: ['employees'],
     queryFn: () => optionsService.getEmployees(),
@@ -138,15 +200,24 @@ export default function ProfileEmails() {
     {
       key: 'actions', label: '',
       render: (_, row) => (
-        <button onClick={() => setDeleteId(row.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+        <motion.button
+          whileHover={reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }}
+          style={{ transformPerspective: 300 }}
+          onClick={() => setDeleteId(row.id)}
+          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+        ><Trash2 className="w-4 h-4" /></motion.button>
       )
     }
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="relative space-y-5 rounded-3xl border border-white/60 bg-gradient-to-br from-sky-100 via-indigo-100/70 to-cyan-100 p-5 shadow-inner">
+      {/* soft light orbs */}
+      <motion.div animate={reduce ? {} : { x: [0, -20, 0], y: [0, 15, 0] }} transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute right-10 top-4 h-64 w-64 rounded-full bg-white/50 blur-3xl" />
+      <motion.div animate={reduce ? {} : { x: [0, 20, 0], y: [0, -15, 0] }} transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute bottom-6 left-10 h-56 w-56 rounded-full bg-violet-200/40 blur-3xl" />
+
       {/* Step 1 + 2 selectors: Employee (admin only) → Profile */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+      <motion.div {...flip} className="relative z-30 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <div className="flex flex-wrap items-end gap-3">
 
           {/* Step 1: Employee selector — only for admin/super_admin */}
@@ -182,40 +253,41 @@ export default function ProfileEmails() {
 
           {selectedProfile && (
             <>
-              <Button size="sm" onClick={() => setGenModal(true)}>
-                <Zap className="w-4 h-4" /> Generate List
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => retryMut.mutate()} loading={retryMut.isPending}>
-                <RotateCcw className="w-4 h-4" /> Retry Failed
-              </Button>
-              <Button variant="secondary" size="sm" onClick={downloadFailedEmails}>
-                <Download className="w-4 h-4" /> Download Failed
-              </Button>
-              <Button variant="danger" size="sm" onClick={() => setClearModal(true)} loading={clearMut.isPending}>
-                <Trash2 className="w-4 h-4" /> Clear All
-              </Button>
+              <motion.div {...btnHover}>
+                <Button size="sm" onClick={() => setGenModal(true)}>
+                  <Zap className="w-4 h-4" /> Generate List
+                </Button>
+              </motion.div>
+              <motion.div {...btnHover}>
+                <Button variant="secondary" size="sm" onClick={() => retryMut.mutate()} loading={retryMut.isPending}>
+                  <RotateCcw className="w-4 h-4" /> Retry Failed
+                </Button>
+              </motion.div>
+              <motion.div {...btnHover}>
+                <Button variant="secondary" size="sm" onClick={downloadFailedEmails}>
+                  <Download className="w-4 h-4" /> Download Failed
+                </Button>
+              </motion.div>
+              <motion.div {...btnHover}>
+                <Button variant="danger" size="sm" onClick={() => setClearModal(true)} loading={clearMut.isPending}>
+                  <Trash2 className="w-4 h-4" /> Clear All
+                </Button>
+              </motion.div>
             </>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats */}
       {selectedProfile && Object.keys(stats).length > 0 && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: 'Total',   value: stats.total,   color: 'bg-blue-50 text-blue-700 border-l-4 border-blue-500' },
-              { label: 'Pending', value: stats.pending, color: 'bg-yellow-50 text-yellow-700 border-l-4 border-yellow-500' },
-              { label: 'Sent',    value: stats.sent,    color: 'bg-green-50 text-green-700 border-l-4 border-green-500' },
-              { label: 'Failed',  value: stats.failed,  color: 'bg-red-50 text-red-700 border-l-4 border-red-500' },
-            ].map(s => (
-              <div key={s.label} className={`rounded-lg p-4 ${s.color}`}>
-                <p className="text-3xl font-bold">{s.value ?? 0}</p>
-                <p className="text-sm font-medium mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="relative space-y-4">
+          <motion.div variants={gridVariants} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <StatTile label="Total"   value={stats.total}   icon={ListChecks} gradient="from-blue-400 to-indigo-500"  text="text-blue-600" />
+            <StatTile label="Pending" value={stats.pending} icon={Clock}      gradient="from-amber-400 to-orange-500" text="text-amber-600" />
+            <StatTile label="Sent"    value={stats.sent}    icon={CheckCircle} gradient="from-emerald-400 to-teal-500" text="text-emerald-600" />
+            <StatTile label="Failed"  value={stats.failed}  icon={XCircle}    gradient="from-rose-400 to-pink-500"    text="text-rose-600" />
+          </motion.div>
+          <motion.div {...flip} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="relative">
@@ -268,15 +340,26 @@ export default function ProfileEmails() {
             </div>
 
             <Table columns={columns} data={emails} loading={isLoading} emptyMsg="No emails generated yet" />
-          </div>
+          </motion.div>
         </div>
       )}
 
       {!selectedProfile && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
-          <ListChecks className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-400">Select a profile to manage its email list</p>
-        </div>
+        <motion.div {...flip} className="relative bg-white rounded-2xl border border-gray-100 p-16 text-center shadow-sm">
+          {/* floating 3D icon with a pulsing ring */}
+          <div className="relative mx-auto mb-4 flex h-20 w-20 items-center justify-center" style={{ perspective: 400 }}>
+            {!reduce && <span className="absolute inset-0 animate-ping rounded-2xl bg-blue-300/30" />}
+            <motion.div
+              animate={reduce ? {} : { rotateY: [-25, 25, -25], y: [0, -6, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ transformStyle: 'preserve-3d' }}
+              className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 shadow-xl shadow-blue-500/30"
+            >
+              <ListChecks className="w-8 h-8 text-white" />
+            </motion.div>
+          </div>
+          <p className="text-gray-500 font-medium">Select a profile to manage its email list</p>
+        </motion.div>
       )}
 
       <Modal open={genModal} onClose={() => setGenModal(false)} title="Confirm Generate">

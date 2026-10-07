@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { emailAccountsService } from '../services/emailAccounts.service'
 import { profilesService } from '../services/profiles.service'
@@ -10,14 +10,65 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import SearchableSelect from '../components/ui/SearchableSelect'
-import { Plus, Pencil, Trash2, Wifi, CheckCircle, AlertCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Wifi, CheckCircle, AlertCircle, Mail, PowerOff, Server } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
+import { motion, animate, useReducedMotion } from 'framer-motion'
 
 const blank = { email: '', accountType: 'gmail_smtp', displayName: '', smtpHost: 'smtp.gmail.com', smtpPort: 587, useTls: true, appPassword: '' }
 
+// ---- visual-only helpers ----
+const gridVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+}
+const cardVariants = {
+  hidden: { opacity: 0, y: 24, rotateX: -15, transformPerspective: 1000 },
+  show: { opacity: 1, y: 0, rotateX: 0, transformPerspective: 1000, transition: { type: 'spring', stiffness: 260, damping: 24 } },
+}
+
+// number counts up from 0
+const CountUp = ({ value }) => {
+  const reduce = useReducedMotion()
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    if (reduce) return
+    const c = animate(0, value, { duration: 1, ease: 'easeOut', onUpdate: v => setN(Math.round(v)) })
+    return () => c.stop()
+  }, [value, reduce])
+  return <>{reduce ? value : n}</>
+}
+
+// light stat card: gradient icon tile + count-up + 3D hover
+const StatCard = ({ label, value, sub, icon: Icon, gradient, text }) => {
+  const reduce = useReducedMotion()
+  return (
+    <motion.div variants={cardVariants}>
+      <motion.div
+        whileHover={reduce ? undefined : { y: -6, rotateX: 5, scale: 1.02 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        style={{ transformPerspective: 800 }}
+        className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 p-5 shadow-lg shadow-blue-900/5 hover:shadow-xl hover:shadow-blue-900/15 transition-shadow"
+      >
+        <div className={`absolute -top-8 -right-8 h-24 w-24 rounded-full bg-gradient-to-br ${gradient} opacity-10`} />
+        <motion.div
+          animate={reduce ? {} : { y: [0, -3, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          className={`mb-3 inline-flex rounded-xl bg-gradient-to-br p-3 text-white shadow-lg ${gradient}`}
+        >
+          <Icon className="w-5 h-5" />
+        </motion.div>
+        <p className="text-sm font-medium text-slate-500">{label}</p>
+        <p className={`text-3xl font-bold ${text}`}><CountUp value={value} /></p>
+        {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
+      </motion.div>
+    </motion.div>
+  )
+}
+
 export default function EmailAccounts() {
   const { user, isAdmin } = useAuth()
+  const reduce = useReducedMotion()
   const isPartialAdmin = user?.role === 'admin' && user?.accessLevel === 'partial'
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
@@ -28,6 +79,19 @@ export default function EmailAccounts() {
   const [smtpTestResult, setSmtpTestResult] = useState(null) // null, 'testing', 'success', 'error'
   const [smtpTestMessage, setSmtpTestMessage] = useState('')
   const [autoFillProfileId, setAutoFillProfileId] = useState('')
+
+  // ---- 3D animation helpers (visual only) ----
+  // table flips in when the page opens
+  const flip = reduce
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.2 } }
+    : {
+        initial: { opacity: 0, rotateX: -12, y: 20 },
+        animate: { opacity: 1, rotateX: 0, y: 0 },
+        transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+        style: { transformPerspective: 1000, transformOrigin: 'top center' },
+      }
+  // row action icons turn in 3D on hover
+  const actionHover = reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }
 
   // Fetch employees list for admin dropdown
   const { data: employeesData } = useQuery({
@@ -44,6 +108,9 @@ export default function EmailAccounts() {
   const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
   // Own data = no employee filter selected
   const isOwnData = !selectedEmployeeId
+  const activeCount = accounts.filter(a => a.isActive).length
+  const gmailCount = accounts.filter(a => a.accountType === 'gmail_smtp').length
+  const zohoCount = accounts.filter(a => a.accountType === 'smtp').length
 
   const activeEmployeeIdForAccounts = isAdmin(user)
     ? (form.employeeId || selectedEmployeeId)
@@ -188,7 +255,14 @@ export default function EmailAccounts() {
 
   const columns = [
     { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{(i + 1).toString().padStart(2, '0')}</span> },
-    { key: 'displayName', label: 'Name' },
+    { key: 'displayName', label: 'Name', render: v => (
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold uppercase text-white shadow-md">
+          {v?.[0] || 'A'}
+        </div>
+        <span className="font-medium text-gray-800">{v}</span>
+      </div>
+    ) },
     { key: 'email', label: 'Email', render: v => <span className="font-medium text-center text-gray-800">{v}</span> },
     { key: 'accountType', label: 'Type', render: v => <Badge label={v} /> },
     { key: 'smtpHost', label: 'SMTP Host', render: v => <span className="text-gray-500">{v}</span> },
@@ -199,9 +273,9 @@ export default function EmailAccounts() {
       key: 'actions', label: '',
       render: (_, row) => (
         (!isPartialAdmin || isOwnData) ? (
-          <div className="flex items-center gap-1">
-            <button onClick={() => { setSelected(row); setForm({ email: row.email, accountType: row.accountType, displayName: row.displayName, smtpHost: row.smtpHost, smtpPort: row.smtpPort, useTls: row.useTls, isActive: row.isActive }); setModal('edit') }} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
-            <button onClick={() => { setDeleteTarget(row); setModal('delete'); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+          <div className="flex items-center gap-1" style={{ perspective: 300 }}>
+            <motion.button whileHover={actionHover} onClick={() => { setSelected(row); setForm({ email: row.email, accountType: row.accountType, displayName: row.displayName, smtpHost: row.smtpHost, smtpPort: row.smtpPort, useTls: row.useTls, isActive: row.isActive }); setModal('edit') }} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"><Pencil className="w-4 h-4" /></motion.button>
+            <motion.button whileHover={actionHover} onClick={() => { setDeleteTarget(row); setModal('delete'); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></motion.button>
           </div>
         ) : null
       )
@@ -209,8 +283,11 @@ export default function EmailAccounts() {
   ]
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="relative space-y-5 rounded-3xl border border-white/60 bg-gradient-to-br from-sky-100 via-indigo-100/70 to-cyan-100 p-5 shadow-inner">
+      {/* soft light orbs */}
+      <motion.div animate={reduce ? {} : { x: [0, -20, 0], y: [0, 15, 0] }} transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute right-10 top-4 h-64 w-64 rounded-full bg-white/50 blur-3xl" />
+      <motion.div animate={reduce ? {} : { x: [0, 20, 0], y: [0, -15, 0] }} transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute bottom-6 left-10 h-56 w-56 rounded-full bg-violet-200/40 blur-3xl" />
+      <div className="relative flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">
           <p className="text-sm text-gray-500">{accounts.length} accounts</p>
           {isAdmin(user) && (
@@ -228,13 +305,28 @@ export default function EmailAccounts() {
           )}
         </div>
         {(!isPartialAdmin || isOwnData) && (
-          <Button size="sm" onClick={() => { setForm(blank); setModal('create') }}>
-            <Plus className="w-4 h-4" /> Add Account
-          </Button>
+          <motion.div whileHover={reduce ? undefined : { y: -3, rotateX: 8, scale: 1.04 }} style={{ transformPerspective: 600 }}>
+            <Button size="sm" onClick={() => { setForm(blank); setModal('create') }}>
+              <Plus className="w-4 h-4" /> Add Account
+            </Button>
+          </motion.div>
         )}
       </div>
 
-      <Table columns={columns} data={accounts} loading={isLoading} emptyMsg="No email accounts yet" />
+      {/* Summary cards */}
+      <motion.div variants={gridVariants} initial="hidden" animate="show" className="relative grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Accounts" value={accounts.length} sub="Connected mailboxes" icon={Mail} gradient="from-blue-400 to-indigo-500" text="text-blue-600" />
+        <StatCard label="Active" value={activeCount} sub="Ready to send" icon={CheckCircle} gradient="from-emerald-400 to-teal-500" text="text-emerald-600" />
+        <StatCard label="Inactive" value={accounts.length - activeCount} sub="Turned off" icon={PowerOff} gradient="from-rose-400 to-pink-500" text="text-rose-600" />
+        <StatCard label="Gmail SMTP" value={gmailCount} sub={`Zoho SMTP: ${zohoCount}`} icon={Server} gradient="from-violet-400 to-purple-500" text="text-purple-600" />
+      </motion.div>
+
+      <motion.div {...flip} className="relative">
+        <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+          <Wifi className="w-3.5 h-3.5" /> Connected Accounts
+        </h3>
+        <Table columns={columns} data={accounts} loading={isLoading} emptyMsg="No email accounts yet" />
+      </motion.div>
 
       <Modal open={modal === 'create' || modal === 'edit'} onClose={() => { setModal(null); setSmtpTestResult(null); setAutoFillProfileId(''); }} title={modal === 'create' ? 'Add Email Account' : 'Edit Account'} size="md">
         <div className="space-y-4">
@@ -318,12 +410,20 @@ export default function EmailAccounts() {
           )}
           
           {smtpTestResult && (
-            <div className={`flex items-start gap-2 p-3 rounded-lg ${smtpTestResult === 'success' ? 'bg-green-50 text-green-700' : smtpTestResult === 'error' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
+            // result message flips in each time the status changes
+            <motion.div
+              key={smtpTestResult}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, rotateX: -30, y: -8 }}
+              animate={{ opacity: 1, rotateX: 0, y: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+              style={{ transformPerspective: 600, transformOrigin: 'top center' }}
+              className={`flex items-start gap-2 p-3 rounded-lg ${smtpTestResult === 'success' ? 'bg-green-50 text-green-700' : smtpTestResult === 'error' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}
+            >
               {smtpTestResult === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
               {smtpTestResult === 'error' && <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
               {smtpTestResult === 'testing' && <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin mt-0.5" />}
               <p className="text-sm">{smtpTestMessage}</p>
-            </div>
+            </motion.div>
           )}
           
           <div className="flex justify-between gap-2 pt-2">

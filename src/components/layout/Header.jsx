@@ -5,19 +5,36 @@ import { Settings, Bell, LogOut, ChevronDown, Menu } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsService } from '../../services/notifications.service'
 import toast from 'react-hot-toast'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { format } from 'date-fns'
 
 export default function Header({ title, toggleSidebar }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const reduce = useReducedMotion()
   const [dropOpen, setDropOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [prevNotifIds, setPrevNotifIds] = useState(null)
   
   const notifRef = useRef(null)
   const dropRef = useRef(null)
+
+  // ---- 3D animation helpers (visual only) ----
+  // icon buttons lift and tilt toward the cursor
+  const iconHover = reduce ? undefined : { rotateY: 18, rotateX: -10, scale: 1.12, z: 20 }
+  const iconTap = reduce ? undefined : { scale: 0.9, rotateY: 0 }
+  const iconStyle = { transformPerspective: 400, transformStyle: 'preserve-3d' }
+  // dropdown panels fold open from the top edge
+  // (nothing starts invisible, so the panels can never get stuck hidden)
+  const panelMotion = reduce
+    ? {}
+    : {
+        initial: { y: -8, rotateX: -35, scale: 0.95 },
+        animate: { y: 0, rotateX: 0, scale: 1 },
+        transition: { type: 'spring', stiffness: 380, damping: 28 },
+      }
+  const panelStyle = { transformPerspective: 900, transformOrigin: 'top right' }
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -89,49 +106,85 @@ export default function Header({ title, toggleSidebar }) {
   }
 
   return (
-    <header className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0 sticky top-0 z-30">
+    <motion.header
+      className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0 sticky top-0 z-30"
+    >
       <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
-        <button 
+        <motion.button 
           onClick={toggleSidebar}
+          whileHover={iconHover}
+          whileTap={iconTap}
+          style={iconStyle}
           className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors focus:outline-none shrink-0"
         >
           <Menu className="w-5 h-5" />
-        </button>
-        <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight truncate">{title}</h1>
+        </motion.button>
+        {/* title flips in whenever the page changes */}
+        <div style={{ perspective: 600 }} className="min-w-0">
+          <motion.h1
+            key={title}
+            initial={reduce ? false : { rotateX: -40, y: 6 }}
+            animate={{ opacity: 1, rotateX: 0, y: 0 }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+            style={{ transformOrigin: 'bottom center' }}
+            className="text-lg sm:text-xl font-semibold text-foreground tracking-tight truncate"
+          >
+            {title}
+          </motion.h1>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
         {user?.role === 'super_admin' && (
-          <button
+          <motion.button
             onClick={() => navigate('/settings')}
+            whileHover={reduce ? undefined : { rotateZ: 90, scale: 1.12 }}
+            whileTap={iconTap}
+            transition={{ type: 'spring', stiffness: 200, damping: 14 }}
             className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors focus:outline-none"
             title="Settings"
           >
             <Settings className="w-5 h-5" />
-          </button>
+          </motion.button>
         )}
 
         {/* Notifications Dropdown */}
         <div className="relative" ref={notifRef}>
-          <button
+          <motion.button
             onClick={() => setNotifOpen(v => !v)}
+            whileHover={iconHover}
+            whileTap={iconTap}
+            style={iconStyle}
             className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors focus:outline-none"
           >
-            <Bell className="w-5 h-5" />
+            {/* bell swings from the top while there are unread items */}
+            <motion.span
+              className="flex"
+              style={{ transformOrigin: 'top center' }}
+              animate={unread > 0 && !reduce ? { rotate: [0, 16, -14, 10, -6, 0] } : { rotate: 0 }}
+              transition={{ duration: 1.2, repeat: unread > 0 ? Infinity : 0, repeatDelay: 3 }}
+            >
+              <Bell className="w-5 h-5" />
+            </motion.span>
             {unread > 0 && (
-              <span className="absolute top-1 right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-background">
-                {unread > 9 ? '9+' : unread}
-              </span>
+              <motion.span
+                key={unread}
+                initial={reduce ? false : { scale: 0.7, rotateY: 90 }}
+                animate={{ scale: 1, rotateY: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                className="absolute top-1 right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-background"
+              >
+                {!reduce && <span className="absolute inset-0 rounded-full bg-destructive opacity-60 animate-ping" />}
+                <span className="relative">{unread > 9 ? '9+' : unread}</span>
+              </motion.span>
             )}
-          </button>
+          </motion.button>
 
           <AnimatePresence>
             {notifOpen && (
               <motion.div
-                  initial={{ opacity: 0, y: 5, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
+                  {...panelMotion}
+                  style={panelStyle}
                   className="absolute right-0 mt-2 w-80 sm:w-96 bg-card rounded-2xl shadow-xl border border-border z-20 flex flex-col max-h-[450px] overflow-hidden"
                 >
                   <div className="flex justify-between items-center px-5 py-4 border-b border-border bg-muted/30 shrink-0">
@@ -147,11 +200,19 @@ export default function Header({ title, toggleSidebar }) {
                     </button>
                   </div>
                   <div className="overflow-y-auto p-2 space-y-1">
-                    {notifs.map(n => {
+                    {notifs.map((n, i) => {
                       const dotColor = n.type === 'error' || n.message?.toLowerCase().includes('invalid') ? 'bg-orange-500' : 'bg-emerald-500'
                       
                       return (
-                        <div key={n.id} className={`p-4 rounded-xl border transition-colors ${n.isRead ? 'bg-background border-transparent hover:bg-muted/50' : 'bg-green-50/50 border-green-100/50'} relative`}>
+                        <motion.div
+                          key={n.id}
+                          initial={reduce ? false : { rotateX: -30, y: -6 }}
+                          animate={{ opacity: 1, rotateX: 0, y: 0 }}
+                          whileHover={reduce ? undefined : { scale: 1.02, z: 12, rotateX: 2 }}
+                          transition={{ duration: 0.3, delay: Math.min(i, 8) * 0.04 }}
+                          style={{ transformPerspective: 700, transformOrigin: 'top center' }}
+                          className={`p-4 rounded-xl border transition-colors ${n.isRead ? 'bg-background border-transparent hover:bg-muted/50' : 'bg-green-50/50 border-green-100/50'} relative`}
+                        >
                           <p className={`text-sm pr-6 leading-relaxed ${n.isRead ? 'text-muted-foreground' : 'text-gray-800 font-medium'}`}>
                             {n.message || n.title}
                           </p>
@@ -159,7 +220,7 @@ export default function Header({ title, toggleSidebar }) {
                             {n.createdAt ? format(new Date(n.createdAt), 'MMM d, yyyy, h:mm a') : ''}
                           </p>
                           {!n.isRead && <div className={`absolute top-5 right-4 w-2 h-2 rounded-full ${dotColor}`} />}
-                        </div>
+                        </motion.div>
                       )
                     })}
                     {notifs.length === 0 && (
@@ -175,24 +236,30 @@ export default function Header({ title, toggleSidebar }) {
 
         {/* Profile dropdown */}
         <div className="relative" ref={dropRef}>
-          <button
+          <motion.button
             onClick={() => setDropOpen(v => !v)}
+            whileTap={iconTap}
             className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full hover:bg-accent transition-colors focus:outline-none"
           >
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold uppercase shadow-sm">
+            <motion.div
+              whileHover={reduce ? undefined : { rotateY: 360 }}
+              transition={{ duration: 0.7, ease: 'easeInOut' }}
+              style={{ transformPerspective: 300 }}
+              className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold uppercase shadow-sm"
+            >
               {user?.name?.[0] || 'U'}
-            </div>
+            </motion.div>
             <span className="text-sm font-medium text-foreground max-w-[100px] truncate">{user?.name}</span>
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          </button>
+            <motion.span animate={{ rotateX: dropOpen ? 180 : 0 }} transition={{ duration: 0.3 }} className="flex" style={{ transformPerspective: 200 }}>
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            </motion.span>
+          </motion.button>
 
           <AnimatePresence>
             {dropOpen && (
               <motion.div
-                  initial={{ opacity: 0, y: 5, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
+                  {...panelMotion}
+                  style={panelStyle}
                   className="absolute right-0 mt-2 w-56 bg-card rounded-xl shadow-xl border border-border z-20 overflow-hidden"
                 >
                   <div className="px-4 py-3 border-b border-border bg-muted/30">
@@ -200,19 +267,21 @@ export default function Header({ title, toggleSidebar }) {
                     <p className="text-xs text-muted-foreground capitalize mt-0.5">{user?.role}</p>
                   </div>
                   <div className="p-1">
-                    <button
+                    <motion.button
                       onClick={handleLogout}
+                      whileHover={reduce ? undefined : { x: 4, rotateY: -6 }}
+                      style={{ transformPerspective: 500 }}
                       className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors focus:outline-none"
                     >
                       <LogOut className="w-4 h-4" />
                       Sign out
-                    </button>
+                    </motion.button>
                   </div>
                 </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
-    </header>
+    </motion.header>
   )
 }

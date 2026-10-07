@@ -1,7 +1,7 @@
 import React from 'react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 
-const Table = React.memo(function Table({ columns, data, loading, emptyMsg = 'No data found', wrapperClassName = "overflow-y-auto max-h-[75vh] rounded-xl border border-gray-100 bg-white shadow-sm relative" }) {
+const Table = React.memo(function Table({ columns, data, loading, emptyMsg = 'No data found', wrapperClassName = "overflow-y-auto max-h-[70vh] rounded-xl border border-gray-100 bg-white shadow-sm relative" }) {
   return (
     <div className={wrapperClassName}>
       <table className="w-full text-sm">

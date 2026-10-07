@@ -11,12 +11,26 @@ import SearchableSelect from '../../components/ui/SearchableSelect'
 import { Plus, Pencil, Trash2, Key, RefreshCw, Shield, ChevronUp, ChevronDown, Filter } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+}
+const itemVariants = {
+  hidden: { opacity: 0, y: 24, rotateX: -15, transformPerspective: 1000 },
+  show: {
+    opacity: 1, y: 0, rotateX: 0, transformPerspective: 1000,
+    transition: { type: 'spring', stiffness: 260, damping: 24 }
+  }
+}
 
 const FilterDropdown = ({ title, value, onChange, options }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
+  const reduce = useReducedMotion()
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -38,8 +52,15 @@ const FilterDropdown = ({ title, value, onChange, options }) => {
         className={`w-3.5 h-3.5 ${value ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
       />
+      <AnimatePresence>
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-50 p-1.5 min-w-[140px]" onClick={e => e.stopPropagation()}>
+        <motion.div
+          initial={reduce ? false : { opacity: 0, rotateX: -30, y: -4 }}
+          animate={{ opacity: 1, rotateX: 0, y: 0 }}
+          exit={reduce ? { opacity: 0 } : { opacity: 0, rotateX: -30, y: -4 }}
+          transition={{ duration: 0.18 }}
+          style={{ transformPerspective: 700, transformOrigin: 'top left' }}
+          className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-50 p-1.5 min-w-[140px]" onClick={e => e.stopPropagation()}>
           <div className="relative mb-1">
             <input
               type="text"
@@ -70,21 +91,31 @@ const FilterDropdown = ({ title, value, onChange, options }) => {
               <li className="px-2 py-1.5 text-gray-500 text-center">No results</li>
             )}
           </ul>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   )
 }
 
-const StatBadge = ({ value, colorClass }) => (
-  <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-md text-xs font-bold transition-all duration-300 hover:scale-110 shadow-sm ${colorClass}`}>
-    {value ?? '—'}
-  </span>
-)
+const StatBadge = ({ value, colorClass }) => {
+  const reduce = useReducedMotion()
+  return (
+    <motion.span
+      whileHover={reduce ? undefined : { scale: 1.15, rotateX: 18, rotateY: -12, z: 12 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+      style={{ transformPerspective: 400 }}
+      className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-md text-xs font-bold shadow-sm ${colorClass}`}
+    >
+      {value ?? '—'}
+    </motion.span>
+  )
+}
 
 export default function Users() {
   const qc = useQueryClient()
   const { user: currentUser } = useAuth()
+  const reduce = useReducedMotion()
   const isSuperAdmin = currentUser?.role === 'super_admin'
   const hasFullAccess = isSuperAdmin || (currentUser?.role === 'admin' && currentUser?.accessLevel === 'full')
   const [modal, setModal] = useState(null)
@@ -223,7 +254,7 @@ export default function Users() {
 
   const openEdit = (user) => {
     setSelected(user)
-    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '', accessLevel: user.accessLevel || 'partial', phoneNumber: user.phoneNumber || '', role: user.role })
+    setForm({ name: user.name, status: user.status, branch: user.branch || '', assignedToAdmin: user.assignedToAdmin || '', accessLevel: user.accessLevel || 'partial', phoneNumber: user.phoneNumber || '' })
     setModal('edit')
   }
 
@@ -251,6 +282,9 @@ export default function Users() {
       </div>
     </div>
   )
+
+  // 3D hover for the row action icons
+  const actionHover = reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }
 
   const columns = [
     { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{i + 1}</span> },
@@ -328,11 +362,11 @@ export default function Users() {
         
         if (!canEdit) return null;
         return (
-          <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
-            <button onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
-            <button onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Change Password"><Key className="w-4 h-4" /></button>
+          <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity" style={{ perspective: 300 }}>
+            <motion.button whileHover={actionHover} onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></motion.button>
+            <motion.button whileHover={actionHover} onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Change Password"><Key className="w-4 h-4" /></motion.button>
             {canDelete && (
-              <button onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+              <motion.button whileHover={actionHover} onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></motion.button>
             )}
           </div>
         )
@@ -369,59 +403,72 @@ export default function Users() {
     ...columns
   ] : columns
 
+  const tabHover = reduce ? undefined : { y: -2 }
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-        <div>
-          <div className="flex gap-6 mb-2">
-            <button
-              onClick={() => { setActiveTab('employee'); setSelectedIds([]); }}
-              className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'employee' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
-              style={{ marginBottom: '-17px' }}
-            >
-              Employee Details
-            </button>
-            {hasFullAccess && isSuperAdmin &&(
-              <button
-                onClick={() => { setActiveTab('admin'); setSelectedIds([]); }}
-                className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'admin' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="">
+      {/* Light panel behind tabs + table */}
+      <motion.div
+        variants={itemVariants}
+        className="rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 px-5 py-3 space-y-3 shadow-inner"
+      >
+        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+          <div>
+            <div className="flex gap-6 mb-2">
+              <motion.button
+                whileHover={tabHover}
+                onClick={() => { setActiveTab('employee'); setSelectedIds([]); }}
+                className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'employee' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
                 style={{ marginBottom: '-17px' }}
               >
-                Admin Details
-              </button>
+                Employee Details
+              </motion.button>
+              {hasFullAccess && isSuperAdmin &&(
+                <motion.button
+                  whileHover={tabHover}
+                  onClick={() => { setActiveTab('admin'); setSelectedIds([]); }}
+                  className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'admin' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  style={{ marginBottom: '-17px' }}
+                >
+                  Admin Details
+                </motion.button>
+              )}
+              {isSuperAdmin && (
+                <motion.button
+                  whileHover={tabHover}
+                  onClick={() => { setActiveTab('super_admin'); setSelectedIds([]); }}
+                  className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'super_admin' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  style={{ marginBottom: '-17px' }}
+                >
+                  Super Admin
+                </motion.button>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mt-10">{filteredUsers.length} users</p>
+          </div>
+          <div className="flex gap-1">
+            {hasFullAccess && activeTab === 'employee' && selectedIds.length > 0 && (
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white border-transparent"
+                onClick={() => setModal('deleteMany')}
+                loading={deleteManyMut.isPending}
+              >
+                <Trash2 className="w-4 h-4" /> Delete Selected
+              </Button>
             )}
-            {isSuperAdmin && (
-              <button
-                onClick={() => { setActiveTab('super_admin'); setSelectedIds([]); }}
-                className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'super_admin' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
-                style={{ marginBottom: '-17px' }}
-              >
-                Super Admin
-              </button>
+            {hasFullAccess && (
+              <motion.div whileHover={reduce ? undefined : { y: -3, rotateX: 8, scale: 1.04 }} style={{ transformPerspective: 600 }}>
+                <Button size="sm" onClick={() => { setForm({ name: '', email: '', password: '', role: 'employee', branch: 'Vellore', assignedToAdmin: '', accessLevel: 'partial', phoneNumber: '' }); setFormErrors({}); setModal('create') }}>
+                  <Plus className="w-4 h-4" /> Add User
+                </Button>
+              </motion.div>
             )}
           </div>
-          <p className="text-sm text-gray-500 mt-10">{filteredUsers.length} users</p>
         </div>
-        <div className="flex gap-2">
-          {hasFullAccess && activeTab === 'employee' && selectedIds.length > 0 && (
-            <Button
-              size="sm"
-              className="bg-red-600 hover:bg-red-700 text-white border-transparent"
-              onClick={() => setModal('deleteMany')}
-              loading={deleteManyMut.isPending}
-            >
-              <Trash2 className="w-4 h-4" /> Delete Selected
-            </Button>
-          )}
-          {hasFullAccess && (
-            <Button size="sm" onClick={() => { setForm({ name: '', email: '', password: '', role: 'employee', branch: 'Vellore', assignedToAdmin: '', accessLevel: 'partial', phoneNumber: '' }); setFormErrors({}); setModal('create') }}>
-              <Plus className="w-4 h-4" /> Add User
-            </Button>
-          )}
-        </div>
-      </div>
 
-      <Table columns={displayColumns} data={filteredUsers} loading={isLoading} emptyMsg="No users found" />
+        <Table columns={displayColumns} data={filteredUsers} loading={isLoading} emptyMsg="No users found" />
+      </motion.div>
 
       {/* Create modal */}
       <Modal open={modal === 'create'} onClose={() => setModal(null)} title="Create User" overflowVisible>
@@ -501,18 +548,7 @@ export default function Users() {
             options={branchOptions}
             placeholder="Select a branch..."
           />
-          {isSuperAdmin && selected?.role !== 'super_admin' && (
-            <SearchableSelect
-              label="Role"
-              value={form.role || 'employee'}
-              onChange={val => setForm(f => ({ ...f, role: val }))}
-              options={[
-                { label: 'Employee', value: 'employee' },
-                { label: 'Admin', value: 'admin' }
-              ]}
-            />
-          )}
-          {(form.role === 'admin') && (
+          {selected?.role === 'admin' && (
             <SearchableSelect
               label="Access Level"
               value={form.accessLevel || 'partial'}
@@ -523,7 +559,7 @@ export default function Users() {
               ]}
             />
           )}
-          {isSuperAdmin && form.role === 'employee' && (
+          {isSuperAdmin && selected?.role === 'employee' && (
             <SearchableSelect
               label="Assign to Admin"
               value={form.assignedToAdmin || ''}
@@ -542,7 +578,7 @@ export default function Users() {
             <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
             <Button onClick={() => {
               const payload = { ...form };
-              if (payload.role !== 'admin') {
+              if (selected?.role !== 'admin') {
                 delete payload.accessLevel;
               }
               if (!payload.phoneNumber || payload.phoneNumber.trim() === '') {
@@ -587,6 +623,6 @@ export default function Users() {
           </div>
         </div>
       </Modal>
-    </div>
+    </motion.div>
   )
 }

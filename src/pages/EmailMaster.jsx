@@ -15,6 +15,7 @@ import { Upload, RefreshCw, Trash2, Users, ChevronLeft, ChevronRight, Search, Do
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
+import { motion, useReducedMotion } from 'framer-motion'
 import { dashboardService } from '../services/dashboard.service'
 import ProfileReplies from './ProfileReplies'
 import { useDebounce } from '../hooks/useDebounce'
@@ -22,6 +23,7 @@ import { useDebounce } from '../hooks/useDebounce'
 export default function EmailMaster() {
   const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
+  const reduce = useReducedMotion()
   const fileRef = useRef()
   const [maxLimit, setMaxLimit] = useState('')
   const [mailSourceUpload, setMailSourceUpload] = useState('')   // selected during upload
@@ -38,6 +40,26 @@ export default function EmailMaster() {
   const [mailSourceFilter, setMailSourceFilter] = useState([])
   const [includeDuplicates, setIncludeDuplicates] = useState(true)
   const [activeTab, setActiveTab] = useState(isAdmin(user) ? 'table' : 'upload') // default tab based on role
+
+  // ---- 3D animation helpers (visual only) ----
+  // each tab's content flips in when it opens
+  const flip = reduce
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.2 } }
+    : {
+        initial: { opacity: 0, rotateX: -12, y: 20 },
+        animate: { opacity: 1, rotateX: 0, y: 0 },
+        transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+        style: { transformPerspective: 1000, transformOrigin: 'top center' },
+      }
+  // summary cards lift and tilt toward you
+  const hoverCard = reduce
+    ? {}
+    : { whileHover: { y: -6, rotateX: 4 }, transition: { type: 'spring', stiffness: 300, damping: 20 }, style: { transformPerspective: 900 } }
+  // icon tiles float gently
+  const floatIcon = reduce
+    ? {}
+    : { animate: { y: [0, -4, 0] }, transition: { duration: 3, repeat: Infinity, ease: 'easeInOut' } }
+  const tabHover = reduce ? undefined : { y: -2, rotateX: 8 }
 
   // History Tab States
   const [historyPreset, setHistoryPreset] = useState('last_7_days')
@@ -132,6 +154,14 @@ export default function EmailMaster() {
     enabled: activeTab === 'history' && isAdmin(user),
     retry: 0,
   })
+
+  const { data: replyStatsData, isLoading: replyStatsLoading } = useQuery({
+    queryKey: ['email-master-reply-stats'],
+    queryFn: () => emailMasterService.getReplyStats(),
+    enabled: activeTab === 'reply-stats' && isAdmin(user),
+    retry: 0,
+  })
+  const replyStats = replyStatsData?.data?.data || null
 
   const responseData = historyData?.data || {}
   const rawLogs = responseData.records || responseData.data?.records || []
@@ -424,7 +454,13 @@ export default function EmailMaster() {
     { key: 'country', label: 'Country', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'state', label: 'State', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'city', label: 'City', render: v => v ? highlightMatch(v, search) : '—' },
-    { key: 'domain', label: 'Domain', render: v => v ? highlightMatch(v, search) : '—' },
+    // { key: '', label: 'Domain', render: v => v ? highlightMatch(v, search) : '—' },
+    {
+      key: 'domain', label: 'Domain', minWidth: '300px', render: v => {
+        const text = Array.isArray(v) ? v.join(', ') : v;
+        return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{highlightMatch(text, search)}</div> : '—';
+      }
+    },
     {
       key: 'domain_group', label: 'Domain Group', minWidth: '300px', render: v => {
         const text = Array.isArray(v) ? v.join(', ') : v;
@@ -468,15 +504,17 @@ export default function EmailMaster() {
     {
       key: 'actions', label: '',
       render: (_, row) => (
-        <button
+        <motion.button
+          whileHover={reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }}
+          style={{ transformPerspective: 300 }}
           onClick={() => setDeleteTarget(row)}
           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
         >
           <Trash2 className="w-4 h-4" />
-        </button>
+        </motion.button>
       )
     }
-  ], [records, selectedRows, page, pageSize, search])
+  ], [records, selectedRows, page, pageSize, search, reduce])
 
   const handleHistorySort = (field) => {
     if (historySortField === field) {
@@ -509,53 +547,73 @@ export default function EmailMaster() {
   ]
   console.log(uploadedFile, "UploadedFile")
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 p-5 shadow-inner">
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 sm:space-x-1 sm:gap-0 bg-gray-100/50 p-1 rounded-xl w-full sm:w-fit border border-gray-200">
-        <button
+        <motion.button
+          whileHover={tabHover}
+          style={{ transformPerspective: 400 }}
           onClick={() => setActiveTab('upload')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'upload'
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'upload'
             ? 'bg-white text-primary-600 shadow-sm'
             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
             }`}
         >
           Upload File
-        </button>
-        <button
-          onClick={() => setActiveTab('replies')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'replies'
-            ? 'bg-white text-primary-600 shadow-sm'
-            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
-            }`}
-        >
-          Client Replies
-        </button>
+        </motion.button>
+        
         {isAdmin(user) && (
           <>
-            <button
+            <motion.button
+              whileHover={tabHover}
+              style={{ transformPerspective: 400 }}
               onClick={() => setActiveTab('table')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'table'
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'table'
                 ? 'bg-white text-primary-600 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
                 }`}
             >
               Show Table
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={tabHover}
+              style={{ transformPerspective: 400 }}
               onClick={() => setActiveTab('history')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'history'
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'history'
                 ? 'bg-white text-primary-600 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
                 }`}
             >
               History
-            </button>
+            </motion.button>
+            <motion.button
+              whileHover={tabHover}
+              style={{ transformPerspective: 400 }}
+              onClick={() => setActiveTab('reply-stats')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'reply-stats'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                }`}
+            >
+              Reply Stats
+            </motion.button>
           </>
         )}
+        <motion.button
+          whileHover={tabHover}
+          style={{ transformPerspective: 400 }}
+          onClick={() => setActiveTab('replies')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'replies'
+            ? 'bg-white text-primary-600 shadow-sm'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+            }`}
+        >
+          Client Replies
+        </motion.button>
       </div>
 
       {activeTab === 'upload' && (
-        <div className="space-y-5">
+        <motion.div {...flip} className="space-y-5">
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
 
             {uploadStep === 1 && (
@@ -631,22 +689,22 @@ export default function EmailMaster() {
               <>
                 <h3 className="font-semibold text-gray-800 mb-4">Step 3: Upload Summary</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                  <motion.div {...hoverCard} className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <p className="text-blue-600 text-sm font-medium">Total Uploaded</p>
                     <p className="text-2xl font-bold text-blue-900">{uploadSummary.data?.totalUploaded || 0}</p>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                  </motion.div>
+                  <motion.div {...hoverCard} className="bg-green-50 p-4 rounded-xl border border-green-100">
                     <p className="text-green-600 text-sm font-medium">Unique</p>
                     <p className="text-2xl font-bold text-green-900">{uploadSummary.data?.unique || 0}</p>
-                  </div>
-                  <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                  </motion.div>
+                  <motion.div {...hoverCard} className="bg-amber-50 p-4 rounded-xl border border-amber-100">
                     <p className="text-amber-600 text-sm font-medium">Duplicate</p>
                     <p className="text-2xl font-bold text-amber-900">{uploadSummary.data?.duplicate || 0}</p>
-                  </div>
-                  <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                  </motion.div>
+                  <motion.div {...hoverCard} className="bg-red-50 p-4 rounded-xl border border-red-100">
                     <p className="text-red-600 text-sm font-medium">Failed</p>
                     <p className="text-2xl font-bold text-red-900">{uploadSummary.data?.failed || 0}</p>
-                  </div>
+                  </motion.div>
                 </div>
                 <div className="flex gap-3">
                   <Button onClick={() => { setUploadStep(1); setUploadSummary(null); setUploadedFile(null); setWorkbook(null); setMailSourceUpload(''); }}>Start New Upload</Button>
@@ -680,12 +738,12 @@ export default function EmailMaster() {
               </>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {activeTab === 'history' && isAdmin(user) && (
-        <div className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <motion.div {...flip} className="space-y-6">
+          <div className="relative z-30 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Upload className="w-6 h-6 text-indigo-600" />
@@ -709,14 +767,16 @@ export default function EmailMaster() {
 
               <div className="flex bg-gray-100/80 p-1 rounded-xl border border-gray-200/50">
                 {['today', 'last_7_days', 'last_month', 'custom'].map(p => (
-                  <button
+                  <motion.button
                     key={p}
+                    whileHover={tabHover}
+                    style={{ transformPerspective: 400 }}
                     onClick={() => setHistoryPreset(p)}
-                    className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${historyPreset === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${historyPreset === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                       }`}
                   >
                     {p === 'today' ? 'Today' : p === 'last_7_days' ? 'Last 7 Days' : p === 'last_month' ? 'Last Month' : 'Custom'}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
 
@@ -743,42 +803,42 @@ export default function EmailMaster() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
-              <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shrink-0">
+            <motion.div {...hoverCard} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
+              <motion.div {...floatIcon} className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/30">
                 <Upload className="w-6 h-6 text-white" />
-              </div>
+              </motion.div>
               <div>
                 <p className="text-sm text-gray-500 font-medium">Total Uploaded</p>
                 <p className="text-2xl font-bold text-gray-900">{historySummary.totalUploads?.toLocaleString() || 0}</p>
               </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0">
+            </motion.div>
+            <motion.div {...hoverCard} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
+              <motion.div {...floatIcon} className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/30">
                 <RefreshCw className="w-6 h-6 text-white" />
-              </div>
+              </motion.div>
               <div>
                 <p className="text-sm text-gray-500 font-medium">Total Unique</p>
                 <p className="text-2xl font-bold text-gray-900">{historySummary.totalUnique?.toLocaleString() || 0}</p>
               </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
-              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
+            </motion.div>
+            <motion.div {...hoverCard} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
+              <motion.div {...floatIcon} className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/30">
                 <Users className="w-6 h-6 text-white" />
-              </div>
+              </motion.div>
               <div>
                 <p className="text-sm text-gray-500 font-medium">Total Duplicate</p>
                 <p className="text-2xl font-bold text-gray-900">{historySummary.totalDuplicate?.toLocaleString() || 0}</p>
               </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
-              <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center shrink-0">
+            </motion.div>
+            <motion.div {...hoverCard} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 shadow-sm">
+              <motion.div {...floatIcon} className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center shrink-0 shadow-lg shadow-red-500/30">
                 <Trash2 className="w-6 h-6 text-white" />
-              </div>
+              </motion.div>
               <div>
                 <p className="text-sm text-gray-500 font-medium">Total Invalid</p>
                 <p className="text-2xl font-bold text-gray-900">{historySummary.totalInvalid?.toLocaleString() || 0}</p>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -833,17 +893,141 @@ export default function EmailMaster() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {activeTab === 'replies' && (
         <ProfileReplies />
       )}
 
+      {activeTab === 'reply-stats' && isAdmin(user) && (
+        <motion.div {...flip} className="space-y-5">
+
+          {/* Summary Cards */}
+          {replyStatsLoading ? (
+            <div className="flex items-center justify-center py-12 text-gray-400 text-sm">Loading stats...</div>
+          ) : replyStats ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <motion.div {...hoverCard} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+                  <motion.div {...floatIcon} className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                    <Users className="w-6 h-6 text-blue-500" />
+                  </motion.div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Total Replies</p>
+                    <p className="text-2xl font-bold text-gray-900">{replyStats.summary?.totalReplies ?? 0}</p>
+                  </div>
+                </motion.div>
+                <motion.div {...hoverCard} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+                  <motion.div {...floatIcon} className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                    <RefreshCw className="w-6 h-6 text-emerald-500" />
+                  </motion.div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Converted</p>
+                    <p className="text-2xl font-bold text-emerald-600">{replyStats.summary?.convertedCount ?? 0}</p>
+                  </div>
+                </motion.div>
+                <motion.div {...hoverCard} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+                  <motion.div {...floatIcon} className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                    <Upload className="w-6 h-6 text-amber-500" />
+                  </motion.div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Other</p>
+                    <p className="text-2xl font-bold text-amber-600">{replyStats.summary?.otherCount ?? 0}</p>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Breakdown Table */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100">
+                  <p className="font-semibold text-gray-800">Handler Breakdown</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Reply performance by each handler</p>
+                </div>
+                <div className="overflow-auto max-h-[420px]">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">S.No</th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Handler</th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Handler Mail</th>
+                        <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Replies</th>
+                        <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Converted</th>
+                        <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Other</th>
+                        {/* <th className="text-center px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Conversion Rate</th> */}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {(replyStats.breakdown || []).map((row, idx) => {
+                        const rate = row.totalReplies > 0 ? Math.round((row.converted / row.totalReplies) * 100) : 0
+                        return (
+                          <tr key={row.handlerId} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-5 py-4 text-gray-400 font-medium">{idx + 1}</td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2.5">
+                                <motion.div
+                                  whileHover={reduce ? undefined : { rotateY: 360 }}
+                                  transition={{ duration: 0.7, ease: 'easeInOut' }}
+                                  style={{ transformPerspective: 300 }}
+                                  className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-white uppercase shrink-0"
+                                >
+                                  {row.handlerName?.[0] || 'H'}
+                                </motion.div>
+                                <span className="font-medium text-gray-900">{row.handlerName}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-medium text-gray-900">{row.handlerEmail}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-center">
+                              <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">{row.totalReplies}</span>
+                            </td>
+                            <td className="px-5 py-4 text-center">
+                              <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                {row.converted}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-center">
+                              <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                                {row.other}
+                              </span>
+                            </td>
+                            {/* <td className="px-5 py-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500 rounded-full transition-all"
+                                    style={{ width: `${rate}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-semibold text-gray-600">{rate}%</span>
+                              </div>
+                            </td> */}
+                          </tr>
+                        )
+                      })}
+                      {(!replyStats.breakdown || replyStats.breakdown.length === 0) && (
+                        <tr>
+                          <td colSpan={6} className="px-5 py-10 text-center text-gray-400 text-sm">No breakdown data available</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center py-12 text-gray-400 text-sm">No reply stats available</div>
+          )}
+        </motion.div>
+      )}
+
       {activeTab === 'table' && isAdmin(user) && (
-        <div className="space-y-5">
+        <motion.div {...flip} className="space-y-5">
           {/* Filters */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+          <div className="relative z-30 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <p className="font-medium text-gray-700">Filters</p>
               {(countryFilter.length > 0 || stateFilter.length > 0 || domainFilter.length > 0 || industryFilter.length > 0 || uploaderFilter.length > 0 || mailSourceFilter.length > 0) && (
@@ -1026,7 +1210,7 @@ export default function EmailMaster() {
             {/* Table */}
             <Table columns={columns} data={records} loading={isLoading || isFetching} emptyMsg="No emails found" wrapperClassName="overflow-auto bg-white max-h-[calc(100vh-320px)] relative" />
           </div>
-        </div>
+        </motion.div>
       )}
 
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirm Delete">
