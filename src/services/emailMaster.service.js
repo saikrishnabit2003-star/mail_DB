@@ -17,7 +17,7 @@ export const emailMasterService = {
     })
   },
   countFiltered: (filters) => api.post('/email-master/count-filtered', filters),
-  getUploaderStats: () => api.get('/email-master/stats/uploaders'),
+  // getUploaderStats: () => api.get('/email-master/stats/uploaders'),
   deleteEmail: (id) => api.delete(`/email-master/${id}`),
   getDropdownOptions: () => api.get('/email-master/dropdown-options'),
   markReply: (data) => api.post('/email-master/replies', data),

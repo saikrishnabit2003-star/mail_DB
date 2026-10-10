@@ -273,6 +273,25 @@ export default function Users() {
   const actionHover = reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }
 
   const columns = [
+    {
+      key: 'actions', label: 'Action',
+      render: (_, row) => {
+        const isSelf = row.id === currentUser?.userId || row.id === currentUser?.id || row.email === currentUser?.email;
+        const canEdit = hasFullAccess || isSelf;
+        const canDelete = hasFullAccess;
+        
+        if (!canEdit) return null;
+        return (
+          <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity" style={{ perspective: 300 }}>
+            <motion.button whileHover={actionHover} onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></motion.button>
+            <motion.button whileHover={actionHover} onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Change Password"><Key className="w-4 h-4" /></motion.button>
+            {canDelete && (
+              <motion.button whileHover={actionHover} onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></motion.button>
+            )}
+          </div>
+        )
+      }
+    },
     { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{i + 1}</span> },
     {
       key: 'user',
@@ -339,25 +358,7 @@ export default function Users() {
     { key: 'pendingCampaigns', label: renderSortHeader('Pending Campaign', 'pendingCampaigns'), render: (v, row) => <StatBadge value={row.stats?.pendingCampaigns} colorClass="bg-yellow-50 text-yellow-700 border border-yellow-200" /> },
     { key: 'pendingEmails', label: renderSortHeader('Pending Mails', 'pendingEmails'), render: (v, row) => <StatBadge value={row.stats?.pendingEmails} colorClass="bg-red-50 text-red-700 border border-red-200" /> },
     { key: 'createdAt', label: 'Created', render: (v) => v ? <span className="text-gray-500 whitespace-nowrap">{format(new Date(v), 'MMM d, yyyy')}</span> : '—' },
-    {
-      key: 'actions', label: '',
-      render: (_, row) => {
-        const isSelf = row.id === currentUser?.userId || row.id === currentUser?.id || row.email === currentUser?.email;
-        const canEdit = hasFullAccess || isSelf;
-        const canDelete = hasFullAccess;
-        
-        if (!canEdit) return null;
-        return (
-          <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity" style={{ perspective: 300 }}>
-            <motion.button whileHover={actionHover} onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></motion.button>
-            <motion.button whileHover={actionHover} onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Change Password"><Key className="w-4 h-4" /></motion.button>
-            {canDelete && (
-              <motion.button whileHover={actionHover} onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></motion.button>
-            )}
-          </div>
-        )
-      }
-    }
+    
   ]
 
   const displayColumns = (activeTab === 'employee' && hasFullAccess) ? [

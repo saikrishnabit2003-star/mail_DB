@@ -9,9 +9,10 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import SearchableSelect from '../components/ui/SearchableSelect'
+import DateRangePicker from '../components/ui/DateRangePicker'
 import MultiSelect from '../components/ui/MultiSelect'
 import { emailMasterService } from '../services/emailMaster.service'
-import { Plus, Pencil, Trash2, Power, PowerOff, Upload, X, Info, LayoutTemplate, Filter, Settings2, University } from 'lucide-react'
+import { Plus, Pencil, Trash2, Power, PowerOff, Upload, X, Info, LayoutTemplate, Filter, Settings2, Calendar, University } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { motion, useReducedMotion } from 'framer-motion'
@@ -34,7 +35,12 @@ const TABS = [
   { id: 'sending', label: 'Sending Options', icon: Settings2 },
   { id: 'test', label: 'TEST', icon: Settings2 },
 ]
-
+const dateRange = [
+  { label: "Last 7 days", value: "last_7_days" },
+  { label: "Last 15 days", value: "last_15_days" },
+  { label: "Last 30 days", value: "last_30_days" },
+  { label: "Custom", value: "custom",icon:Calendar }
+]
 const defaultForm = {
   profileName: '', gmailAccount: '',
   employeeId: '',
@@ -43,12 +49,12 @@ const defaultForm = {
     { name: 'Default', subject: '', body: '' },
   ],
   attachments: [],
-  filters: { country: [], state: [], industry: [], domain: [], University: [], type: [], mailSource: [] },
+  filters: { country: [], state: [], industry: [], domain: [], University: [], type: [], mailSource: [] ,dateRange:""},
   filterLimit: 0,
-  sendingOptions: { dailyLimit: 100, delayMin: 30, delayMax: 90 },
+  sendingOptions: { dailyLimit: 100, delayMin: Number(30), delayMax: Number(90) },
   promptSettings: { personalizeGreeting: true, improveGrammar: false, improveProfessionalism: false, aiRewrite: false, customInstruction: '' },
 }
-
+// const [showDatePicker, setShowDatePicker] = useState(false)
 const quillModules = {
   toolbar: [
     [{ 'size': ['10px', false, '18px', '32px'] }],
@@ -92,7 +98,8 @@ export default function Profiles() {
   const [testTemplateName, setTestTemplateName] = useState('')
   const [filterLimitError, setFilterLimitError] = useState(null)
   const [templateErrors, setTemplateErrors] = useState([])
-
+  const [sendingErrors, setSendingErrors] = useState({})
+  const [showDatePicker, setShowDatePicker] = useState(false)
   // 3D helpers: modal tab content flips in each time its tab becomes active
   const paneVariants = {
     hide: reduce ? { opacity: 0 } : { opacity: 0, rotateX: -14, y: 18 },
@@ -329,6 +336,7 @@ export default function Profiles() {
     setTestEmail('')
     setFilterLimitError('')
     setTemplateErrors([])
+    setSendingErrors({})
     if (profile) {
       setSelected(profile)
       setForm(formatProfileForEdit(profile))
@@ -369,6 +377,33 @@ export default function Profiles() {
       setActiveTab('filters')
       setFilterLimitError('Filter Limit must be at least 1')
       return toast.error('Filter Limit must be at least 1')
+    }
+
+    const { dailyLimit, delayMin, delayMax } = form.sendingOptions || {};
+    let sErrs = {};
+    let hasSendingError = false;
+
+    if (dailyLimit === '' || dailyLimit === null || dailyLimit === undefined || dailyLimit < 1) {
+      sErrs.dailyLimit = 'Required (≥1)';
+      hasSendingError = true;
+    }
+    if (delayMin === '' || delayMin === null || delayMin === undefined || delayMin < 1) {
+      sErrs.delayMin = 'Required (≥1)';
+      hasSendingError = true;
+    }
+    if (delayMax === '' || delayMax === null || delayMax === undefined || delayMax < 1) {
+      sErrs.delayMax = 'Required (≥1)';
+      hasSendingError = true;
+    }
+    if (!sErrs.delayMax && !sErrs.delayMin && delayMax <= delayMin) {
+      sErrs.delayMax = 'Must be > Min Delay';
+      hasSendingError = true;
+    }
+
+    if (hasSendingError) {
+      setSendingErrors(sErrs);
+      setActiveTab('sending');
+      return toast.error('kindly fix sending options errors');
     }
 
     modal === 'create' ? createMut.mutate(form) : updateMut.mutate({ id: selected.id, d: form })
@@ -718,6 +753,43 @@ export default function Profiles() {
                   options={(dropdownOptions.university || []).map(c => ({ label: c, value: c }))}
                   placeholder="Select universities..."
                 />
+                <SearchableSelect
+                label="date range"
+                value={form.filters?.dateRange || []}
+                onChange={val => setForm(f => ({ ...f, filters:{...f.filters,dateRange: val || ''} }))}
+                options={(dateRange || []).map(s => ({ label: s.label, value: s.value }))}
+                placeholder="Select dates range"
+                ></SearchableSelect>
+                {form.filters?.dateRange === 'custom' && (
+              <div className="flex-[1.5] min-w-[250px] relative">
+                <label className="block text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Date Range</label>
+                <div 
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-pointer flex items-center justify-between hover:border-primary/50 transition-colors h-[38px]"
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                >
+                  <span>
+                    {form.filters?.dateRange 
+                      ? `${form.filters?.dateRange?.startDate} - ${form.filters?.dateRange?.endDate}` 
+                      : 'Select Date Range'}
+                  </span>
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                </div>
+                {showDatePicker && (
+                  <div className="absolute top-full right-0 mt-2 z-50">
+                    <DateRangePicker 
+                      startDate={form.filters?.dateRange?.startDate} 
+                      endDate={form.filters?.dateRange?.endDate} 
+                      onChange={(dates) => {
+                        setForm(f => ({ ...f, filters: { ...f.filters, dateRange: dates } }));
+                        if (dates.start && dates.end) {
+                          setShowDatePicker(false);
+                        }
+                      }} 
+                    />
+                  </div>
+                )}
+              </div>
+            )}
               </div>
 
               <Input
@@ -775,19 +847,19 @@ export default function Profiles() {
               <p className="text-sm text-gray-500">Configure rate limits and delays for this profile.</p>
 
               <div className="grid grid-cols-3 gap-4">
-                <motion.div whileHover={reduce ? undefined : { y: -4 }} className="border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50 hover:bg-white hover:shadow-lg transition-colors">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Daily Limit</p>
-                  <Input type="number" value={form.sendingOptions?.dailyLimit} onChange={fNum('sendingOptions', 'dailyLimit')} />
+                <motion.div whileHover={reduce ? undefined : { y: -4 }} className={`border ${sendingErrors?.dailyLimit ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-gray-50'} rounded-xl p-4 space-y-2 hover:bg-white hover:shadow-lg transition-colors`}>
+                  <p className={`text-xs font-semibold ${sendingErrors?.dailyLimit ? 'text-red-500' : 'text-gray-500'} uppercase tracking-wide text-center`}>Daily Limit</p>
+                  <Input type="number" value={form.sendingOptions?.dailyLimit} onChange={(e) => { fNum('sendingOptions', 'dailyLimit')(e); setSendingErrors(p => ({...p, dailyLimit: null})) }} required error={sendingErrors?.dailyLimit} />
                   <p className="text-xs text-gray-400 text-center">emails / day</p>
                 </motion.div>
-                <motion.div whileHover={reduce ? undefined : { y: -4 }} className="border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50 hover:bg-white hover:shadow-lg transition-colors">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Min Delay</p>
-                  <Input type="number" value={form.sendingOptions?.delayMin} onChange={fNum('sendingOptions', 'delayMin')} />
+                <motion.div whileHover={reduce ? undefined : { y: -4 }} className={`border ${sendingErrors?.delayMin ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-gray-50'} rounded-xl p-4 space-y-2 hover:bg-white hover:shadow-lg transition-colors`}>
+                  <p className={`text-xs font-semibold ${sendingErrors?.delayMin ? 'text-red-500' : 'text-gray-500'} uppercase tracking-wide text-center`}>Min Delay</p>
+                  <Input type="number" value={form.sendingOptions?.delayMin} onChange={(e) => { fNum('sendingOptions', 'delayMin')(e); setSendingErrors(p => ({...p, delayMin: null, delayMax: null})) }} min={1} required error={sendingErrors?.delayMin} />
                   <p className="text-xs text-gray-400 text-center">seconds</p>
                 </motion.div>
-                <motion.div whileHover={reduce ? undefined : { y: -4 }} className="border border-gray-200 rounded-xl p-4 space-y-2 bg-gray-50 hover:bg-white hover:shadow-lg transition-colors">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Max Delay</p>
-                  <Input type="number" value={form.sendingOptions?.delayMax} onChange={fNum('sendingOptions', 'delayMax')} />
+                <motion.div whileHover={reduce ? undefined : { y: -4 }} className={`border ${sendingErrors?.delayMax ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-gray-50'} rounded-xl p-4 space-y-2 hover:bg-white hover:shadow-lg transition-colors`}>
+                  <p className={`text-xs font-semibold ${sendingErrors?.delayMax ? 'text-red-500' : 'text-gray-500'} uppercase tracking-wide text-center`}>Max Delay</p>
+                  <Input type="number" value={form.sendingOptions?.delayMax} min={form.sendingOptions?.delayMin + 10} onChange={(e) => { fNum('sendingOptions', 'delayMax')(e); setSendingErrors(p => ({...p, delayMax: null})) }} required error={sendingErrors?.delayMax} />
                   <p className="text-xs text-gray-400 text-center">seconds</p>
                 </motion.div>
               </div>

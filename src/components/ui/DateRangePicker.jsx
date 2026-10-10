@@ -145,8 +145,17 @@ export default function DateRangePicker({ startDate, endDate, onChange }) {
       {renderHeader()}
       {renderDays()}
       {renderCells()}
-      <div className="mt-4 text-xs text-center text-gray-400">
-        Double click any date to reset selection
+      <div className="mt-4 flex flex-col gap-2">
+        <button
+          type="button"
+          className="w-full py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
+          onClick={() => onChange({ start: '', end: '' })}
+        >
+          Clear Selection
+        </button>
+        <div className="text-xs text-center text-gray-400">
+          Double click any date to reset selection
+        </div>
       </div>
     </div>
   );

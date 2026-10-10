@@ -441,6 +441,19 @@ export default function EmailMaster() {
     //     />
     //   )
     // },
+    {
+      key: 'actions', label: 'Action',
+      render: (_, row) => (
+        <motion.button
+          whileHover={reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }}
+          style={{ transformPerspective: 300 }}
+          onClick={() => setDeleteTarget(row)}
+          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+        >
+          <Trash2 className="w-4 h-4" />
+        </motion.button>
+      )
+    },
     { key: 'sno', label: 'S.No', sortable: false, render: (_, __, i) => i + 1 + (page - 1) * pageSize },
     { key: 'fullName', label: 'Full Name', render: v => v ? highlightMatch(v, search) : '—' },
     { key: 'email', label: 'Email', render: v => <span className="font-medium text-blue-600">{v ? highlightMatch(v, search) : ''}</span> },
@@ -501,19 +514,7 @@ export default function EmailMaster() {
       key: 'uploadedDate', label: 'Upload Date',
       render: v => v ? format(new Date(v), 'MMM d, yyyy') : '—'
     },
-    {
-      key: 'actions', label: '',
-      render: (_, row) => (
-        <motion.button
-          whileHover={reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }}
-          style={{ transformPerspective: 300 }}
-          onClick={() => setDeleteTarget(row)}
-          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-        >
-          <Trash2 className="w-4 h-4" />
-        </motion.button>
-      )
-    }
+    
   ], [records, selectedRows, page, pageSize, search, reduce])
 
   const handleHistorySort = (field) => {
@@ -1156,15 +1157,15 @@ export default function EmailMaster() {
                       )}
                       {deleteStartDate && deleteEndDate && (
                         <Button 
-                          className="bg-red-600 hover:bg-red-700 text-white border-transparent text-xs h-[38px] px-3"
+                          className="bg-red-600 hover:bg-red-700 text-white border-transparent text-xs h-[38px] "
                           onClick={() => setDeleteDateRangeModal(true)}
                         >
-                          <Trash2 className="w-3 h-3 mr-1" /> Delete
+                          <Trash2 className="w-3 h-3 " />
                         </Button>
                       )}
                     </div>
                     <Button variant="secondary" className="h-[38px]" onClick={() => setExportModal(true)}>
-                      <Download className="w-4 h-4 mr-2" /> Export
+                      <Download className="w-4 h-4" />
                     </Button>
                   </>
                 )}

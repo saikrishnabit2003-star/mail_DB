@@ -45,6 +45,15 @@ export default function Employees() {
   })
 
   const columns = [
+    {
+      key: 'actions', label: 'Action',
+      render: (_, row) => (
+        <div className="flex items-center gap-1">
+          <button onClick={() => { setSelected(row); setForm({ department: row.department || '', branch: row.branch || '', status: row.status }); setModal('edit') }} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
+          <button onClick={() => { setDeleteTarget(row); setModal('delete'); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+        </div>
+      )
+    },
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Email' },
     { key: 'department', label: 'Department', render: v => v || '—' },
@@ -55,15 +64,7 @@ export default function Employees() {
     { key: 'totalCampaigns', label: 'Total Campaigns', render: (v, row) => <Badge label={row.stats?.totalCampaigns ?? '—'} /> },
     { key: 'runningCampaigns', label: 'Running Campaigns', render: (v, row) => <Badge label={row.stats?.runningCampaigns ?? '—'} /> },
     { key: 'createdAt', label: 'Created', render: v => v ? format(new Date(v), 'MMM d, yyyy') : '—' },
-    {
-      key: 'actions', label: '',
-      render: (_, row) => (
-        <div className="flex items-center gap-1">
-          <button onClick={() => { setSelected(row); setForm({ department: row.department || '', branch: row.branch || '', status: row.status }); setModal('edit') }} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
-          <button onClick={() => { setDeleteTarget(row); setModal('delete'); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-        </div>
-      )
-    }
+    
   ]
 
   return (

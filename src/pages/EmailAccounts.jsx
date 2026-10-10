@@ -254,6 +254,17 @@ export default function EmailAccounts() {
   const f = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }))
 
   const columns = [
+    {
+      key: 'actions', label: 'Action',
+      render: (_, row) => (
+        (!isPartialAdmin || isOwnData) ? (
+          <div className="flex items-center gap-1" style={{ perspective: 300 }}>
+            <motion.button whileHover={actionHover} onClick={() => { setSelected(row); setForm({ email: row.email, accountType: row.accountType, displayName: row.displayName, smtpHost: row.smtpHost, smtpPort: row.smtpPort, useTls: row.useTls, isActive: row.isActive }); setModal('edit') }} className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded"><Pencil className="w-3 h-3" /></motion.button>
+            <motion.button whileHover={actionHover} onClick={() => { setDeleteTarget(row); setModal('delete'); }} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3" /></motion.button>
+          </div>
+        ) : null
+      )
+    },
     { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{(i + 1).toString().padStart(2, '0')}</span> },
     { key: 'displayName', label: 'Name', render: v => (
       <div className="flex items-center gap-2.5">
@@ -269,17 +280,7 @@ export default function EmailAccounts() {
     { key: 'smtpPort', label: 'Port', render: v => <span className="text-gray-500">{v}</span> },
     { key: 'isActive', label: 'Status', render: v => <Badge label={v ? 'active' : 'inactive'} variant={v ? 'success' : 'default'} /> },
     { key: 'lastUsedAt', label: 'Last Used', render: v => v ? <span className="text-gray-500">{format(new Date(v), 'MMM d, yyyy')}</span> : <span className="text-gray-300">—</span> },
-    {
-      key: 'actions', label: '',
-      render: (_, row) => (
-        (!isPartialAdmin || isOwnData) ? (
-          <div className="flex items-center gap-1" style={{ perspective: 300 }}>
-            <motion.button whileHover={actionHover} onClick={() => { setSelected(row); setForm({ email: row.email, accountType: row.accountType, displayName: row.displayName, smtpHost: row.smtpHost, smtpPort: row.smtpPort, useTls: row.useTls, isActive: row.isActive }); setModal('edit') }} className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"><Pencil className="w-4 h-4" /></motion.button>
-            <motion.button whileHover={actionHover} onClick={() => { setDeleteTarget(row); setModal('delete'); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></motion.button>
-          </div>
-        ) : null
-      )
-    }
+    
   ]
 
   return (

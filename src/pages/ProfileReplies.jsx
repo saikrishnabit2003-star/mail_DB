@@ -18,7 +18,8 @@ export default function ProfileReplies() {
   const [formData, setFormData] = useState({
     email: '',
     reason: 'replied',
-    customReason: ''
+    customReason: '',
+    phone_no:''
   })
   const [editId, setEditId] = useState(null)
   const [replyToDelete, setReplyToDelete] = useState(null)
@@ -101,7 +102,7 @@ export default function ProfileReplies() {
     mutationFn: (data) => emailMasterService.markReply(data),
     onSuccess: (res) => {
       toast.success(res.data?.message || 'Reply marked successfully')
-      setFormData({ email: '', reason: 'replied', customReason: '' })
+      setFormData({ email: '', reason: 'replied', customReason: '', phone_no: '' })
       qc.invalidateQueries(['email-master-replies'])
     },
     onError: (err) => {
@@ -114,7 +115,7 @@ export default function ProfileReplies() {
     onSuccess: (res) => {
       toast.success(res.data?.message || 'Reply updated successfully')
       setEditId(null)
-      setFormData({ email: '', reason: 'replied', customReason: '' })
+      setFormData({ email: '', reason: 'replied', customReason: '', phone_no: '' })
       qc.invalidateQueries(['email-master-replies'])
     },
     onError: (err) => {
@@ -146,6 +147,7 @@ export default function ProfileReplies() {
         data: {
           hasReply: true,
           reason: formData.reason,
+          phone_no:formData.phone_no,
           customReason:formData.customReason 
         }
       })
@@ -159,7 +161,8 @@ export default function ProfileReplies() {
     setFormData({
       email: row.email,
       reason: row.replyReason || 'replied',
-      customReason: row.replyCustomReason || ''
+      customReason: row.replyCustomReason || '',
+      phone_no: row.phone_no || ''
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -176,34 +179,14 @@ export default function ProfileReplies() {
 
   const handleCancelEdit = () => {
     setEditId(null)
-    setFormData({ email: '', reason: 'replied', customReason: '' })
+    setFormData({ email: '', reason: 'replied', customReason: '', phone_no: '' })
   }
 
   const columns = [
-    { key: 'sno', label: 'S.No', render: (_, __, i) => i + 1 + (page - 1) * pageSize },
-    { key: 'fullName', label: 'Full Name', render: v => v || '—' },
-    { key: 'email', label: 'Email', render: v => <span className="font-medium text-blue-600">{v}</span> },
-    { key: 'university', label: 'University', render: v => v || '—' },
-    { key: 'domain', label: 'Domain', render: v => v || '—' },
-    { key: 'replyReason', label: 'Reason', render: v => <span className="capitalize font-medium text-indigo-600">{v || '—'}</span> },
-    { 
-      key: 'replyCustomReason', 
-      label: 'Custom Reason', 
-      render: v => v ? (
-        <div className="min-w-[250px] max-w-[300px] max-h-24 overflow-y-auto pr-2 text-sm text-gray-700 whitespace-pre-wrap">
-          {v}
-        </div>
-      ) : '—' 
-    },
-   
-    { key: 'uploadedByName', label: 'Uploaded By', render: v => <span className="text-sm px-3 text-gray-600 capitalize">{v || '—'}</span> },
-    { key: 'uploadedDate', label: 'Upload Date', render: v => v ? format(new Date(v), 'MMM d, yyyy') : '—' },
-    { key: 'replyMarkedByName', label: 'Reply Marked By', render: v => <span className="text-sm text-gray-600 capitalize">{v || '—'}</span> },
-    { key: 'replyMarkedAt', label: 'Reply Marked At', render: v => v ? format(new Date(v), 'MMM d, yyyy') : '—' },
     {
-      key: 'actions', label: '',
+      key: 'actions', label: 'Action',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center ">
           <button
             onClick={() => handleEdit(row)}
             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
@@ -223,7 +206,29 @@ export default function ProfileReplies() {
           )}
         </div>
       )
-    }
+    },
+    { key: 'sno', label: 'S.No', render: (_, __, i) => i + 1 + (page - 1) * pageSize },
+    { key: 'fullName', label: 'Full Name', render: v => v || '—' },
+    { key: 'email', label: 'Email', render: v => <span className="font-medium text-blue-600">{v}</span> },
+    { key: 'phone_no', label: 'Phone', render: v => v || '—' },
+    { key: 'university', label: 'University', render: v => v || '—' },
+    { key: 'domain', label: 'Domain', render: v => v || '—' },
+    { key: 'replyReason', label: 'Reason', render: v => <span className="capitalize font-medium text-indigo-600">{v || '—'}</span> },
+    { 
+      key: 'replyCustomReason', 
+      label: 'Custom Reason', 
+      render: v => v ? (
+        <div className="min-w-[250px] max-w-[300px] max-h-24 overflow-y-auto pr-2 text-sm text-gray-700 whitespace-pre-wrap">
+          {v}
+        </div>
+      ) : '—' 
+    },
+   
+    { key: 'uploadedByName', label: 'Uploaded By', render: v => <span className="text-sm px-3 text-gray-600 capitalize">{v || '—'}</span> },
+    { key: 'uploadedDate', label: 'Upload Date', render: v => v ? format(new Date(v), 'MMM d, yyyy') : '—' },
+    { key: 'replyMarkedByName', label: 'Reply Marked By', render: v => <span className="text-sm text-gray-600 capitalize">{v || '—'}</span> },
+    { key: 'replyMarkedAt', label: 'Reply Marked At', render: v => v ? format(new Date(v), 'MMM d, yyyy') : '—' },
+    
   ]
 
   return (
@@ -244,7 +249,7 @@ export default function ProfileReplies() {
             : 'Mark matching email-master records as having received a reply.'}
         </p> */}
         
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,1.3fr)_auto] items-start gap-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-3">
           <div className="min-w-0">
             <Input 
               label="Email Address *" 
@@ -254,6 +259,18 @@ export default function ProfileReplies() {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
               disabled={!!editId}
+            />
+          </div>
+          <div className="min-w-0">
+            <Input
+            
+              label="Phone No" 
+              type="tel" 
+              placeholder="XXXXXXXXXX"
+              value={formData.phone_no}
+              onChange={(e) => setFormData({ ...formData, phone_no: e.target.value })}
+              minLength={10}
+              maxLength={15}
             />
           </div>
           <div className="min-w-0">
@@ -291,7 +308,7 @@ export default function ProfileReplies() {
             )}
             <Button type="submit" loading={editId ? updateReplyMut.isPending : markReplyMut.isPending}>
               {editId ? (
-                <><Edit className="w-4 h-4 mr-2" /> Update Reply</>
+                <><Edit className="w-4 h-4 mr-2" /> Update</>
               ) : (
                 <><Send className="w-4 h-4 mr-2" /> Mark as Reply</>
               )}
