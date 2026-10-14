@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { emailMasterService } from '../services/emailMaster.service'
@@ -11,7 +12,7 @@ import Select from '../components/ui/Select'
 import SearchableSelect from '../components/ui/SearchableSelect'
 import MultiSelect from '../components/ui/MultiSelect'
 import DateRangePicker from '../components/ui/DateRangePicker'
-import { Upload, RefreshCw, Trash2, Users, ChevronLeft, ChevronRight, Search, Download, ChevronUp, ChevronDown, Calendar } from 'lucide-react'
+import { Upload, RefreshCw, Trash2, Users, ChevronLeft, ChevronRight, Search, Download, ChevronUp, ChevronDown, Calendar, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
@@ -80,16 +81,25 @@ export default function EmailMaster() {
   const [uploadedFile, setUploadedFile] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
+  const [editForm, setEditForm] = useState(null)
   const [deleteSelectedTarget, setDeleteSelectedTarget] = useState(false)
   const [deleteStartDate, setDeleteStartDate] = useState('')
   const [deleteEndDate, setDeleteEndDate] = useState('')
   const [deleteDateRangeModal, setDeleteDateRangeModal] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const datePickerRef = useRef(null)
+  const datePickerTriggerRef = useRef(null)
+  const datePickerPopupRef = useRef(null)
+  const [datePickerPosition, setDatePickerPosition] = useState(null)
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+      if (
+        datePickerRef.current
+        && !datePickerRef.current.contains(event.target)
+        && !datePickerPopupRef.current?.contains(event.target)
+      ) {
         setShowDatePicker(false)
       }
     }
@@ -97,11 +107,43 @@ export default function EmailMaster() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    if (!showDatePicker) return
+
+    const updateDatePickerPosition = () => {
+      const trigger = datePickerTriggerRef.current
+      if (!trigger) return
+
+      const rect = trigger.getBoundingClientRect()
+      const popupWidth = 280
+      const popupHeight = 360
+      const top = rect.bottom + 8
+      setDatePickerPosition({
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - popupWidth - 8)),
+        top: Math.max(8, Math.min(top, window.innerHeight - popupHeight - 8)),
+      })
+    }
+
+    updateDatePickerPosition()
+    window.addEventListener('resize', updateDatePickerPosition)
+    window.addEventListener('scroll', updateDatePickerPosition, true)
+    return () => {
+      window.removeEventListener('resize', updateDatePickerPosition)
+      window.removeEventListener('scroll', updateDatePickerPosition, true)
+    }
+  }, [showDatePicker])
+
   const [selectedRows, setSelectedRows] = useState([])
   const [exportModal, setExportModal] = useState(false)
   const [exportFormat, setExportFormat] = useState('xlsx')
 
   const STANDARD_FIELDS = ['Email', 'Full Name', 'University', 'Country', 'State', 'City', 'Industry', 'Designation', 'Domain', 'Domain Group', 'Phone', 'Website', 'LinkedIn', 'Citation']
+  const hasTableDeleteFilters = Boolean(
+    countryFilter.length || domainFilter.length || uploaderFilter.length
+  )
+  const hasDeleteDateRange = Boolean(deleteStartDate && deleteEndDate)
+  const hasPartialDeleteDateRange = Boolean(deleteStartDate) !== Boolean(deleteEndDate)
+  const hasDeleteCriteria = hasDeleteDateRange || hasTableDeleteFilters
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['email-master', page, pageSize, debouncedSearch, countryFilter, stateFilter, domainFilter, industryFilter, universityFilter, uploaderFilter, mailSourceFilter, includeDuplicates],
@@ -133,6 +175,14 @@ export default function EmailMaster() {
     staleTime: 1000 * 60 * 30,
   })
   const options = optionsRes?.data?.data || {}
+  const deleteFilterSummary = [
+    ...(countryFilter.length ? [{ label: 'Country', value: countryFilter.join(', ') }] : []),
+    ...(domainFilter.length ? [{ label: 'Domain', value: domainFilter.join(', ') }] : []),
+    ...(uploaderFilter.length ? [{
+      label: 'Uploader',
+      value: uploaderFilter.map(id => options.uploaders?.find(uploader => String(uploader.id) === String(id))?.name || id).join(', '),
+    }] : []),
+  ]
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ['email-master-stats'],
@@ -165,7 +215,7 @@ export default function EmailMaster() {
 
   const responseData = historyData?.data || {}
   const rawLogs = responseData.records || responseData.data?.records || []
-  console.log("UPLOAD HISTORY RESPONSE:", responseData)
+  // console.log("UPLOAD HISTORY RESPONSE:", responseData)
   let historyLogs = Array.isArray(rawLogs) ? [...rawLogs] : []
 
   if (historySortField) {
@@ -178,7 +228,16 @@ export default function EmailMaster() {
   }
   const historyPagination = responseData.pagination || responseData.data?.pagination || { page: 1, total: 0, total_pages: 1 }
   const historyTotal = historyPagination.total || 0
-  const historyTotalPages = historyPagination.total_pages || 1
+  const historyTotalPages = Math.max(
+    1,
+    historyPagination.total_pages || Math.ceil(historyTotal / historyPageSize) || 1
+  )
+  const currentHistoryPage = Math.min(historyPage, historyTotalPages)
+
+  useEffect(() => {
+    if (historyPage > historyTotalPages) setHistoryPage(historyTotalPages)
+  }, [historyPage, historyTotalPages])
+
   const historySummary = responseData.totals || responseData.data?.totals || {
     totalUploads: 0,
     totalUnique: 0,
@@ -231,6 +290,17 @@ export default function EmailMaster() {
     onError: (e) => toast.error(getErrorMessage(e, 'Delete failed')),
   })
 
+  const updateEmailMut = useMutation({
+    mutationFn: ({ id, data }) => emailMasterService.updateEmail(id, data),
+    onSuccess: (response) => {
+      qc.invalidateQueries(['email-master'])
+      setEditTarget(null)
+      setEditForm(null)
+      toast.success(response.data.message)
+    },
+    onError: (e) => toast.error(getErrorMessage(e, 'Failed to update email details')),
+  })
+
   const deleteSelectedMut = useMutation({
     mutationFn: (ids) => Promise.all(ids.map(id => emailMasterService.deleteEmail(id))),
     onSuccess: () => {
@@ -242,13 +312,17 @@ export default function EmailMaster() {
   })
 
   const deleteByDateRangeMut = useMutation({
-    mutationFn: () => {
+    mutationFn: ({ startDate, endDate, filters }) => {
       const formatToDDMMYYYY = (dateStr) => {
-        if (!dateStr) return '';
+        if (!dateStr) return undefined
         const [y, m, d] = dateStr.split('-');
         return `${d}-${m}-${y}`;
       }
-      return emailMasterService.deleteByDateRange(formatToDDMMYYYY(deleteStartDate), formatToDDMMYYYY(deleteEndDate))
+      return emailMasterService.deleteByDateRange(
+        formatToDDMMYYYY(startDate),
+        formatToDDMMYYYY(endDate),
+        filters,
+      )
     },
     onSuccess: () => {
       qc.invalidateQueries(['email-master'])
@@ -396,14 +470,26 @@ export default function EmailMaster() {
 
   const stats = statsData?.data?.stats || []
 
-  const highlightMatch = (text, query) => {
-    if (!query || !text) return text;
-    const regex = new RegExp(`(${query})`, 'gi');
-    const parts = String(text).split(regex);
+  const highlightMatch = (text, query, filterTerms = []) => {
+    if (!text) return text
+    const searchTerm = String(query || '').trim()
+    const selectedTerms = [...new Set(
+      filterTerms.map(term => String(term).trim()).filter(Boolean)
+    )].sort((a, b) => b.length - a.length)
+    if (!searchTerm && !selectedTerms.length) return text
+
+    const escapeRegex = term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const alternatives = [
+      ...(searchTerm ? [escapeRegex(searchTerm)] : []),
+      ...selectedTerms.map(term => `(?<![\\p{L}\\p{N}])${escapeRegex(term)}(?![\\p{L}\\p{N}])`),
+    ]
+    const regex = new RegExp(`(${alternatives.join('|')})`, 'giu')
+    const matchingTerms = new Set([searchTerm, ...selectedTerms].filter(Boolean).map(term => term.toLowerCase()))
+    const parts = String(text).split(regex)
     return (
       <>
         {parts.map((part, i) =>
-          regex.test(part) ? (
+          matchingTerms.has(part.toLowerCase()) ? (
             <mark key={i} className="bg-yellow-200 text-gray-900 rounded-sm px-0.5">
               {part}
             </mark>
@@ -444,45 +530,78 @@ export default function EmailMaster() {
     {
       key: 'actions', label: 'Action',
       render: (_, row) => (
-        <motion.button
-          whileHover={reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }}
-          style={{ transformPerspective: 300 }}
-          onClick={() => setDeleteTarget(row)}
-          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-        >
-          <Trash2 className="w-4 h-4" />
-        </motion.button>
+        <div className="flex items-center gap-1">
+          <motion.button
+            type="button"
+            whileHover={reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }}
+            style={{ transformPerspective: 300 }}
+            onClick={() => {
+              setEditTarget(row)
+              setEditForm({
+                fullName: row.fullName || '',
+                email: row.email || '',
+                university: row.university || '',
+                website: row.website || '',
+                country: row.country || '',
+                state: row.state || '',
+                city: row.city || '',
+                domain: Array.isArray(row.domain) ? row.domain.join(', ') : row.domain || '',
+                domain_group: Array.isArray(row.domain_group) ? row.domain_group.join(', ') : row.domain_group || '',
+                industry: row.industry || '',
+                designation: row.designation || '',
+                phone: row.phone || '',
+                linkedin: row.linkedin || '',
+              })
+            }}
+            aria-label="Edit email details"
+            title="Edit"
+            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+          >
+            <Pencil className="w-4 h-4" />
+          </motion.button>
+          <motion.button
+            type="button"
+            whileHover={reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }}
+            style={{ transformPerspective: 300 }}
+            onClick={() => setDeleteTarget(row)}
+            aria-label="Delete email"
+            title="Delete"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+          >
+            <Trash2 className="w-4 h-4" />
+          </motion.button>
+        </div>
       )
     },
     { key: 'sno', label: 'S.No', sortable: false, render: (_, __, i) => i + 1 + (page - 1) * pageSize },
-    { key: 'fullName', label: 'Full Name', render: v => v ? highlightMatch(v, search) : '—' },
-    { key: 'email', label: 'Email', render: v => <span className="font-medium text-blue-600">{v ? highlightMatch(v, search) : ''}</span> },
-    { key: 'university', label: 'University', render: v => v ? highlightMatch(v, search) : '—' },
+    { key: 'fullName', label: 'Full Name', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search) : '—'}</div> },
+    { key: 'email', label: 'Email', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar"><span className="font-medium text-blue-600">{v ? highlightMatch(v, search) : ''}</span></div> },
+    { key: 'university', label: 'University', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search) : '—'}</div> },
     {
       key: 'website', label: 'Website',
       render: v => v
         ? <a href={v} target="_blank" rel="noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
         : '—'
     },
-    { key: 'country', label: 'Country', render: v => v ? highlightMatch(v, search) : '—' },
-    { key: 'state', label: 'State', render: v => v ? highlightMatch(v, search) : '—' },
-    { key: 'city', label: 'City', render: v => v ? highlightMatch(v, search) : '—' },
+    { key: 'country', label: 'Country', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search, countryFilter) : '—'}</div> },
+    { key: 'state', label: 'State', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search, stateFilter) : '—'}</div> },
+    { key: 'city', label: 'City', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search) : '—'}</div> },
     // { key: '', label: 'Domain', render: v => v ? highlightMatch(v, search) : '—' },
     {
       key: 'domain', label: 'Domain', minWidth: '300px', render: v => {
         const text = Array.isArray(v) ? v.join(', ') : v;
-        return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{highlightMatch(text, search)}</div> : '—';
+        return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{highlightMatch(text, search, domainFilter)}</div> : '—';
       }
     },
     {
       key: 'domain_group', label: 'Domain Group', minWidth: '300px', render: v => {
         const text = Array.isArray(v) ? v.join(', ') : v;
-        return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{highlightMatch(text, search)}</div> : '—';
+        return text ? <div className="max-h-24 overflow-y-auto whitespace-pre-wrap pr-1 custom-scrollbar">{highlightMatch(text, search, domainFilter)}</div> : '—';
       }
     },
-    { key: 'industry', label: 'Industry', render: v => v ? highlightMatch(v, search) : '—' },
-    { key: 'designation', label: 'Designation', render: v => v ? highlightMatch(v, search) : '—' },
-    { key: 'phone', label: 'Phone', render: v => v || '—' },
+    { key: 'industry', label: 'Industry', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search, industryFilter) : '—'}</div> },
+    { key: 'designation', label: 'Designation', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search) : '—'}</div> },
+    { key: 'phone', label: 'Phone', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search) : '—'}</div> },
     {
       key: 'linkedin', label: 'LinkedIn',
       render: v => v
@@ -491,7 +610,7 @@ export default function EmailMaster() {
     },
     {
       key: 'mailSource', label: 'Mail Source', render: v => v
-        ? <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">{v}</span>
+        ? <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">{highlightMatch(v, search, mailSourceFilter)}</span>
         : '—'
     },
     {
@@ -503,19 +622,37 @@ export default function EmailMaster() {
       render: v => <span className="text-xs text-gray-600 font-medium">{v || 0}</span>
     },
     {
+      key: 'profileNames', label: 'Used By Profiles',
+      render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar text-xs text-gray-600">{(v && v.length > 0) ? highlightMatch(v.join(', '), search) : '—'}</div>
+    },
+    {
       key: 'usedByEmployeeNames', label: 'Used By Employees',
-      render: v => <span className="text-xs text-gray-600">{(v && v.length > 0) ? v.join(', ') : '—'}</span>
+      render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar text-xs text-gray-600">{(v && v.length > 0) ? highlightMatch(v.join(', '), search) : '—'}</div>
     },
     {
       key: 'uploadedByName', label: 'Uploaded By',
-      render: v => <span className="text-xs text-gray-600">{v || '—'}</span>
+      render: v => <span className="text-xs text-gray-600">{v ? highlightMatch(v, search, uploaderFilter.map(id => uploaders.find(uploader => String(uploader.id) === String(id))?.name).filter(Boolean)) : '—'}</span>
     },
     {
       key: 'uploadedDate', label: 'Upload Date',
       render: v => v ? format(new Date(v), 'MMM d, yyyy') : '—'
     },
     
-  ], [records, selectedRows, page, pageSize, search, reduce])
+  ], [
+    records,
+    selectedRows,
+    page,
+    pageSize,
+    search,
+    reduce,
+    countryFilter,
+    stateFilter,
+    domainFilter,
+    industryFilter,
+    uploaderFilter,
+    mailSourceFilter,
+    options.uploaders,
+  ])
 
   const handleHistorySort = (field) => {
     if (historySortField === field) {
@@ -546,7 +683,7 @@ export default function EmailMaster() {
     { key: 'duplicateCount', label: renderHistorySortHeader('Duplicate', 'duplicateCount'), render: v => <span className="font-medium text-amber-500">{(v || 0).toLocaleString()}</span> },
     { key: 'invalidCount', label: renderHistorySortHeader('Invalid', 'invalidCount'), render: v => <span className="font-medium text-red-500">{(v || 0).toLocaleString()}</span> },
   ]
-  console.log(uploadedFile, "UploadedFile")
+  // console.log(uploadedFile, "UploadedFile")
   return (
     <div className="space-y-5 rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 p-5 shadow-inner">
       {/* Tabs */}
@@ -724,7 +861,7 @@ export default function EmailMaster() {
                         });
                         const ws = XLSX.utils.json_to_sheet(formattedEmails)
                         const wb = XLSX.utils.book_new()
-                        console.log("ws :", formattedEmails)
+                        // console.log("ws :", formattedEmails)
                         XLSX.utils.book_append_sheet(wb, ws, "Failed Emails")
                         XLSX.writeFile(wb, "uploaded_failed_mails_list.xlsx")
                       } catch (err) {
@@ -757,7 +894,7 @@ export default function EmailMaster() {
               <div className="w-48">
                 <SearchableSelect
                   value={historyEmployee}
-                  onChange={val => setHistoryEmployee(val)}
+                  onChange={val => { setHistoryEmployee(val); setHistoryPage(1) }}
                   options={[
                     { label: 'All Employees', value: '' },
                     ...(responseData.employees || responseData.data?.employees || uploaders).map(u => ({ label: u.name, value: u.id || u._id }))
@@ -772,7 +909,7 @@ export default function EmailMaster() {
                     key={p}
                     whileHover={tabHover}
                     style={{ transformPerspective: 400 }}
-                    onClick={() => setHistoryPreset(p)}
+                    onClick={() => { setHistoryPreset(p); setHistoryPage(1) }}
                     className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${historyPreset === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                       }`}
                   >
@@ -787,7 +924,7 @@ export default function EmailMaster() {
                     type="date"
                     value={historyStartDate}
                     max={historyEndDate || undefined}
-                    onChange={e => setHistoryStartDate(e.target.value)}
+                    onChange={e => { setHistoryStartDate(e.target.value); setHistoryPage(1) }}
                     className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <span className="text-gray-400 text-sm">to</span>
@@ -795,7 +932,7 @@ export default function EmailMaster() {
                     type="date"
                     value={historyEndDate}
                     min={historyStartDate || undefined}
-                    onChange={e => setHistoryEndDate(e.target.value)}
+                    onChange={e => { setHistoryEndDate(e.target.value); setHistoryPage(1) }}
                     className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
@@ -859,7 +996,7 @@ export default function EmailMaster() {
             {/* Pagination Footer for History */}
             <div className="p-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 bg-white">
               <div>
-                Showing <span className="font-medium text-gray-900">{historyTotal > 0 ? (historyPage - 1) * historyPageSize + 1 : 0}-{Math.min(historyPage * historyPageSize, historyTotal)}</span> of <span className="font-medium text-gray-900">{historyTotal}</span> logs
+                Showing <span className="font-medium text-gray-900">{historyTotal > 0 ? (currentHistoryPage - 1) * historyPageSize + 1 : 0}-{Math.min(currentHistoryPage * historyPageSize, historyTotal)}</span> of <span className="font-medium text-gray-900">{historyTotal}</span> logs
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -876,16 +1013,16 @@ export default function EmailMaster() {
                 </div>
                 <div className="flex items-center gap-4">
                   <button
-                    onClick={() => setHistoryPage(Math.max(1, historyPage - 1))}
-                    disabled={historyPage === 1}
+                    onClick={() => setHistoryPage(Math.max(1, currentHistoryPage - 1))}
+                    disabled={currentHistoryPage === 1}
                     className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <span>Page {historyPage} of {historyTotalPages}</span>
+                  <span>Page {currentHistoryPage} of {historyTotalPages}</span>
                   <button
-                    onClick={() => setHistoryPage(Math.min(historyTotalPages, historyPage + 1))}
-                    disabled={historyPage === historyTotalPages}
+                    onClick={() => setHistoryPage(Math.min(historyTotalPages, currentHistoryPage + 1))}
+                    disabled={currentHistoryPage === historyTotalPages}
                     className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -1126,10 +1263,11 @@ export default function EmailMaster() {
                     <Trash2 className="w-4 h-4 mr-1" /> Delete Selected ({selectedRows.length})
                   </Button>
                 )} */}
-                {user?.role === 'super_admin' && (
+                {(user?.role === 'super_admin' || user?.role === 'admin' && user?.accessLevel === 'full') && (
                   <>
                     <div className="flex items-center gap-2 relative" ref={datePickerRef}>
                       <div 
+                        ref={datePickerTriggerRef}
                         className="w-[200px] bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-700 cursor-pointer flex items-center justify-between hover:border-primary/50 transition-colors h-[38px]"
                         onClick={() => setShowDatePicker(!showDatePicker)}
                       >
@@ -1140,29 +1278,34 @@ export default function EmailMaster() {
                         </span>
                         <Calendar className="w-3.5 h-3.5 text-gray-400" />
                       </div>
-                      {showDatePicker && (
-                        <div className="absolute top-full left-0 sm:right-0 sm:left-auto mt-2 z-50">
-                          <DateRangePicker 
-                            startDate={deleteStartDate} 
-                            endDate={deleteEndDate} 
+                      {showDatePicker && datePickerPosition && createPortal(
+                        <div
+                          ref={datePickerPopupRef}
+                          className="fixed z-[110]"
+                          style={datePickerPosition}
+                        >
+                          <DateRangePicker
+                            startDate={deleteStartDate}
+                            endDate={deleteEndDate}
                             onChange={(dates) => {
-                              setDeleteStartDate(dates.start);
-                              setDeleteEndDate(dates.end);
-                              if (dates.start && dates.end) {
-                                setShowDatePicker(false);
-                              }
-                            }} 
+                              setDeleteStartDate(dates.start)
+                              setDeleteEndDate(dates.end)
+                              if (dates.start && dates.end) setShowDatePicker(false)
+                            }}
                           />
-                        </div>
+                        </div>,
+                        document.body
                       )}
-                      {deleteStartDate && deleteEndDate && (
-                        <Button 
-                          className="bg-red-600 hover:bg-red-700 text-white border-transparent text-xs h-[38px] "
+                      {/* {(hasDeleteCriteria || hasPartialDeleteDateRange) && ( */}
+                        <Button
+                          className="bg-red-600 hover:bg-red-700 text-white border-transparent text-xs h-[38px]"
+                          disabled={!hasDeleteCriteria || hasPartialDeleteDateRange}
+                          title={hasPartialDeleteDateRange ? 'Select both dates or clear the date range' : undefined}
                           onClick={() => setDeleteDateRangeModal(true)}
                         >
-                          <Trash2 className="w-3 h-3 " />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
-                      )}
+                      
                     </div>
                     <Button variant="secondary" className="h-[38px]" onClick={() => setExportModal(true)}>
                       <Download className="w-4 h-4" />
@@ -1224,6 +1367,80 @@ export default function EmailMaster() {
         </div>
       </Modal>
 
+      <Modal
+        open={!!editTarget}
+        onClose={() => {
+          if (!updateEmailMut.isPending) {
+            setEditTarget(null)
+            setEditForm(null)
+          }
+        }}
+        title={`Edit Email Details (${editTarget?.email})`}
+        size="lg"
+      >
+        {editForm && (
+          <form
+            className="space-y-5"
+            onSubmit={e => {
+              e.preventDefault()
+              updateEmailMut.mutate({
+                id: editTarget.id || editTarget._id,
+                data: {
+                  ...editForm,
+                  domain_group: editForm.domain_group
+                    .split(',')
+                    .map(value => value.trim())
+                    .filter(Boolean),
+                }
+              })
+            }}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                // ['email', 'Email'],
+                ['fullName', 'Full Name'],
+                ['university', 'University'],
+                ['website', 'Website'],
+                ['country', 'Country'],
+                ['state', 'State'],
+                ['city', 'City'],
+                ['domain', 'Domain'],
+                ['domain_group', 'Domain Group'],
+                ['industry', 'Industry'],
+                ['designation', 'Designation'],
+                ['phone', 'Phone'],
+                ['linkedin', 'LinkedIn'],
+              ].map(([key, label]) => (
+                <Input
+                  key={key}
+                  label={label}
+                  value={editForm[key]}
+                  // disabled={label==='Email'}
+                  onChange={e => setEditForm(prev => ({ ...prev, [key]: e.target.value }))}
+                  maxLength={key==='phone'?10:undefined}
+                />
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={updateEmailMut.isPending}
+                onClick={() => {
+                  setEditTarget(null)
+                  setEditForm(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" loading={updateEmailMut.isPending}>
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
       <Modal open={deleteSelectedTarget} onClose={() => setDeleteSelectedTarget(false)} title="Confirm Delete">
         <div className="space-y-4">
           <p className="text-gray-700">Are you sure you want to delete {selectedRows.length} selected emails?</p>
@@ -1234,12 +1451,37 @@ export default function EmailMaster() {
         </div>
       </Modal>
 
-      <Modal open={deleteDateRangeModal} onClose={() => setDeleteDateRangeModal(false)} title="Confirm Delete By Date">
+      <Modal open={deleteDateRangeModal} onClose={() => !deleteByDateRangeMut.isPending && setDeleteDateRangeModal(false)} title="Confirm Delete Matching Emails">
         <div className="space-y-4">
-          <p className="text-gray-700">Are you sure you want to delete all emails uploaded between <strong>{deleteStartDate}</strong> and <strong>{deleteEndDate}</strong>?</p>
+          <p className="text-gray-700">This permanently deletes every email matching the criteria below:</p>
+          <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+            {hasDeleteDateRange && (
+              <li>Uploaded between <strong>{format(new Date(deleteStartDate), 'MMM d, yyyy')}</strong> and <strong>{format(new Date(deleteEndDate), 'MMM d, yyyy')}</strong></li>
+            )}
+            {!hasDeleteDateRange && <li>Any upload date</li>}
+            {deleteFilterSummary.map(({ label, value }) => (
+              <li key={label}>{label}: <strong>{value}</strong></li>
+            ))}
+            {deleteFilterSummary.length === 0 && <li>No table filters (date range only)</li>}
+          </ul>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => setDeleteDateRangeModal(false)}>Cancel</Button>
-            <Button className="bg-red-600 hover:bg-red-700 text-white border-transparent" onClick={() => deleteByDateRangeMut.mutate()} loading={deleteByDateRangeMut.isPending}>Delete</Button>
+            <Button variant="secondary" disabled={deleteByDateRangeMut.isPending} onClick={() => setDeleteDateRangeModal(false)}>Cancel</Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white border-transparent"
+              disabled={!hasDeleteCriteria || hasPartialDeleteDateRange}
+              onClick={() => deleteByDateRangeMut.mutate({
+                startDate: deleteStartDate,
+                endDate: deleteEndDate,
+                filters: {
+                  country: countryFilter.length ? countryFilter.join(',') : undefined,
+                  domain: domainFilter.length ? domainFilter.join(',') : undefined,
+                  uploadedBy: uploaderFilter.length ? uploaderFilter.join(',') : undefined,
+                },
+              })}
+              loading={deleteByDateRangeMut.isPending}
+            >
+              Delete Matching
+            </Button>
           </div>
         </div>
       </Modal>

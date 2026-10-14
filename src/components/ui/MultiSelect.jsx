@@ -88,7 +88,7 @@ export default function MultiSelect({
 
         {/* Dropdown panel */}
         {open && (
-          <div className="absolute left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="absolute left-0 right-0 z-50 mt-1 flex max-h-[min(240px,60vh)] flex-col bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
             {/* Search box */}
             <div className="p-2 border-b border-gray-100">
               <div className="relative">
@@ -112,7 +112,7 @@ export default function MultiSelect({
 
             {/* List */}
             <ul
-              className="overflow-y-auto py-1"
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1"
               style={{ maxHeight }}
             >
               {filtered.length === 0 ? (

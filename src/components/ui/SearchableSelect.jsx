@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { Search, ChevronDown, Check } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -28,8 +28,52 @@ export default function SearchableSelect({
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [openUp, setOpenUp] = useState(false)
   const wrapRef = useRef(null)
+  const triggerRef = useRef(null)
+  const dropdownRef = useRef(null)
   const searchRef = useRef(null)
+  const filtered = options.filter(o =>
+    o.label.toLowerCase().includes(search.toLowerCase())
+  )
+
+  useLayoutEffect(() => {
+    if (!open) return
+
+    const updatePlacement = () => {
+      const trigger = triggerRef.current
+      const dropdown = dropdownRef.current
+      if (!trigger || !dropdown) return
+
+      let topBoundary = 0
+      let bottomBoundary = window.innerHeight
+      let ancestor = trigger.parentElement
+      while (ancestor && ancestor !== document.body) {
+        const { overflowY } = window.getComputedStyle(ancestor)
+        if (overflowY === 'auto' || overflowY === 'scroll') {
+          const bounds = ancestor.getBoundingClientRect()
+          topBoundary = bounds.top + ancestor.clientTop
+          bottomBoundary = topBoundary + ancestor.clientHeight
+          break
+        }
+        ancestor = ancestor.parentElement
+      }
+
+      const triggerBounds = trigger.getBoundingClientRect()
+      const dropdownHeight = dropdown.offsetHeight
+      const spaceBelow = bottomBoundary - triggerBounds.bottom
+      const spaceAbove = triggerBounds.top - topBoundary
+      setOpenUp(spaceBelow < dropdownHeight && spaceAbove > spaceBelow)
+    }
+
+    updatePlacement()
+    window.addEventListener('resize', updatePlacement)
+    window.addEventListener('scroll', updatePlacement, true)
+    return () => {
+      window.removeEventListener('resize', updatePlacement)
+      window.removeEventListener('scroll', updatePlacement, true)
+    }
+  }, [open, filtered.length])
 
   // Close when clicking outside
   useEffect(() => {
@@ -47,10 +91,6 @@ export default function SearchableSelect({
   useEffect(() => {
     if (open && searchRef.current) searchRef.current.focus()
   }, [open])
-
-  const filtered = options.filter(o =>
-    o.label.toLowerCase().includes(search.toLowerCase())
-  )
 
   const selected = options.find(o => o.value === value)
 
@@ -70,6 +110,7 @@ export default function SearchableSelect({
       <div className="relative">
         {/* Trigger */}
         <button
+          ref={triggerRef}
           type="button"
           disabled={disabled}
           onClick={() => !disabled && setOpen(prev => !prev)}
@@ -95,7 +136,13 @@ export default function SearchableSelect({
 
         {/* Dropdown panel */}
         {open && (
-          <div className="absolute left-0 min-w-full w-max z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-w-[90vw]">
+          <div
+            ref={dropdownRef}
+            className={clsx(
+              'absolute left-0 min-w-full w-max z-50 flex max-h-[min(240px,60vh)] flex-col bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-w-[90vw]',
+              openUp ? 'bottom-full mb-1' : 'top-full mt-1'
+            )}
+          >
             {/* Search box */}
             <div className="p-2 border-b border-gray-100">
               <div className="relative">
@@ -113,7 +160,7 @@ export default function SearchableSelect({
 
             {/* Options list – scrolls after maxHeight */}
             <ul
-              className="overflow-y-auto overscroll-contain py-1"
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1"
               style={{ maxHeight: `${maxHeight}px` }}
             >
               {filtered.length === 0 ? (

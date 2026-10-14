@@ -73,9 +73,9 @@ export default function Select({ label, error, children, className, value, onCha
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
               transition={{ duration: 0.15 }}
-              className="absolute z-50 min-w-full w-max max-w-[90vw] mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+              className="absolute z-50 min-w-full w-max max-w-[90vw] max-h-[min(240px,60vh)] mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
             >
-              <ul className="max-h-56 overflow-y-auto py-1">
+              <ul className="max-h-[240px] overflow-y-auto overscroll-contain py-1">
                 {options.map((opt, i) => (
                   <li
                     key={i}

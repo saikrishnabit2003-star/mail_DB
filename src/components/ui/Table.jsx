@@ -7,11 +7,11 @@ const Table = React.memo(function Table({ columns, data, loading, emptyMsg = 'No
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-white">
-            {columns.map((col, i) => (
+            {columns.map(col => (
               <th 
                 key={col.key} 
                 style={{ 
-                  zIndex: 20 - i, 
+                  zIndex: 20,
                   width: col.width,
                   minWidth: col.minWidth || col.width || (['sno', 'select', 'actions'].includes(col.key) ? '60px' : '150px') 
                 }} 

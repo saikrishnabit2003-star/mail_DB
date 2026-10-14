@@ -34,7 +34,7 @@ export const profilesService = {
 
   testEmail: (profileId, data, employeeId = null) => {
     const params = employeeId ? { employeeId } : {}
-    console.log(`/profiles/${profileId}/test-email`, data, { params })
+    // console.log(`/profiles/${profileId}/test-email`, data, { params })
     return api.post(`/profiles/${profileId}/test-email`, data, { params })
   },
 

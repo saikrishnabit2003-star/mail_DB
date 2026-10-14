@@ -302,7 +302,7 @@ export default function Header({ title, toggleSidebar }) {
 
       {/* Center Notification Modal */}
       <AnimatePresence>
-        {centerNotif && (
+        {centerNotif && user?.role === 'employee' && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -318,7 +318,7 @@ export default function Header({ title, toggleSidebar }) {
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full flex flex-col items-center text-center"
             >
-              {centerNotif.type === 'error' ? (
+              {(centerNotif.type === 'error' && user?.role === 'employee') ? (
                 <>
                   <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
                     <XCircle className="w-10 h-10 text-red-500" />

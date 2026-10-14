@@ -3,11 +3,11 @@ import api from '../lib/axios'
 export const profileEmailsService = {
   generate: (profileId, limit, employeeId = null, allowUsed = undefined) => {
     const params = employeeId ? { employeeId } : {}
-    const payload = { limitOverride: limit }
-    if (allowUsed !== undefined) {
-      payload.allowUsed = allowUsed
-    }
-    return api.post(`/profile-emails/${profileId}/generate`, payload, { params })
+    // const payload = {  }
+    // if (allowUsed !== undefined) {
+    //   payload.allowUsed = allowUsed
+    // }
+    return api.post(`/profile-emails/${profileId}/generate`, { params })
   },
 
   stats: (profileId, employeeId = null) => {

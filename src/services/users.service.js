@@ -3,7 +3,7 @@ import api from '../lib/axios'
 export const usersService = {
   list: async () => {
     const res = await api.get('/users')
-    console.log('Users Response:', res.data)
+    // console.log('Users Response:', res.data)
     return res
   },
   getById: (id) => api.get(`/users/${id}`),

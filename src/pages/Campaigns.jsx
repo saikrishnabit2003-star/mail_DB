@@ -216,7 +216,7 @@ export default function Campaigns() {
     const now = new Date()
     const timezoneOffsetMinutes = now.getTimezoneOffset()
     
-    console.log(`[DEBUG] Sending to backend - Time: ${scheduleForm.scheduledTime}, Date: ${scheduleForm.scheduledFor || 'none'}, TZ offset: ${timezoneOffsetMinutes} minutes, Recurrence: ${scheduleForm.recurrenceType}`)
+    // console.log(`[DEBUG] Sending to backend - Time: ${scheduleForm.scheduledTime}, Date: ${scheduleForm.scheduledFor || 'none'}, TZ offset: ${timezoneOffsetMinutes} minutes, Recurrence: ${scheduleForm.recurrenceType}`)
     
     scheduleMut.mutate({
       campaignName: scheduleForm.campaignName,

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { optionsService } from '../../services/options.service'
-import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { emailMasterService } from '../../services/emailMaster.service'
+import { Plus, Pencil, Trash2, Check, X, RefreshCw } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
@@ -54,6 +55,15 @@ export default function Settings() {
       toast.success('Settings created')
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to create settings')
+  })
+
+  const rebuildDropdownsMut = useMutation({
+    mutationFn: () => emailMasterService.rebuildDropdowns(),
+    onSuccess: (response) => {
+      qc.invalidateQueries({ queryKey: ['email-master-options'] })
+      toast.success(response.data?.message || 'Dropdowns refreshed')
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to refresh dropdowns')
   })
 
   const handleAdd = (e) => {
@@ -221,6 +231,20 @@ export default function Settings() {
               </form>
             </div>
           )}
+        </div>
+
+        {/* Dropdown Refresh */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Dropdown Options</h3>
+          <p className="text-sm text-gray-500 mb-4">Rebuild the dropdown options used in Email Master filters.</p>
+          <Button
+            onClick={() => rebuildDropdownsMut.mutate()}
+            loading={rebuildDropdownsMut.isPending}
+            disabled={rebuildDropdownsMut.isPending}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh Dropdowns
+          </Button>
         </div>
       </div>
 

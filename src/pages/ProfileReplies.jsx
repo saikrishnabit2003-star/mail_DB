@@ -85,7 +85,7 @@ export default function ProfileReplies() {
     reasons: apiOptions?.reasons || [
       { value: 'converted', label: 'Converted' },
       { value: 'other', label: 'Other' },
-      { value: 'replied', label: 'Replied' }
+      // { value: 'replied', label: 'Replied' }
     ],
     replyMarkedByNames: apiOptions?.replyMarkedByNames,
     updatedTimePresets: apiOptions?.updatedTimePresets || [
@@ -280,7 +280,7 @@ export default function ProfileReplies() {
               onChange={(val) => setFormData({ ...formData, reason: val })}
               required
               options={[
-                { label: 'Replied', value: 'replied' },
+                // { label: 'Replied', value: 'replied' },
                 { label: 'Converted', value: 'converted' },
                 { label: 'Others', value: 'other' }
               ]}
@@ -333,7 +333,8 @@ export default function ProfileReplies() {
                 options={filterOptions.reasons.map(o => ({ label: o.label, value: o.value }))}
               />
             </div>
-            <div className="flex-1 min-w-[140px]">
+            {user?.role !== 'employee' && (
+              <div className="flex-1 min-w-[140px]">
               <SearchableSelect 
                 label="Marked By"
                 value={filters.replyMarkedByName}
@@ -342,6 +343,7 @@ export default function ProfileReplies() {
                 options={(filterOptions.replyMarkedByNames || []).map(o => ({ label: o.label, value: o.value }))}
               />
             </div>
+            )}
             <div className="flex-1 min-w-[140px]">
               <SearchableSelect 
                 label="Updated Time"

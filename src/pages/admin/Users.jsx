@@ -47,7 +47,7 @@ const FilterDropdown = ({ title, value, onChange, options }) => {
           animate={{ rotateX: 0, y: 0 }}
           transition={{ duration: 0.18 }}
           style={{ transformPerspective: 700, transformOrigin: 'top left' }}
-          className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-50 p-1.5 min-w-[140px]" onClick={e => e.stopPropagation()}>
+          className="absolute top-full left-0 mt-1 flex max-h-[min(240px,60vh)] flex-col bg-white border border-gray-200 rounded shadow-lg z-50 p-1.5 min-w-[140px] overflow-hidden" onClick={e => e.stopPropagation()}>
           <div className="relative mb-1">
             <input
               type="text"
@@ -58,7 +58,7 @@ const FilterDropdown = ({ title, value, onChange, options }) => {
               autoFocus
             />
           </div>
-          <ul className="max-h-40 overflow-y-auto text-xs">
+          <ul className="min-h-0 max-h-[200px] flex-1 overflow-y-auto overscroll-contain text-xs">
             <li 
               className={`px-2 py-1.5 cursor-pointer hover:bg-gray-100 rounded ${value === '' ? 'bg-primary-50 text-primary-600 font-medium' : ''}`}
               onClick={() => { onChange(''); setOpen(false); setSearch(''); }}
@@ -273,25 +273,7 @@ export default function Users() {
   const actionHover = reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }
 
   const columns = [
-    {
-      key: 'actions', label: 'Action',
-      render: (_, row) => {
-        const isSelf = row.id === currentUser?.userId || row.id === currentUser?.id || row.email === currentUser?.email;
-        const canEdit = hasFullAccess || isSelf;
-        const canDelete = hasFullAccess;
-        
-        if (!canEdit) return null;
-        return (
-          <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity" style={{ perspective: 300 }}>
-            <motion.button whileHover={actionHover} onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></motion.button>
-            <motion.button whileHover={actionHover} onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Change Password"><Key className="w-4 h-4" /></motion.button>
-            {canDelete && (
-              <motion.button whileHover={actionHover} onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></motion.button>
-            )}
-          </div>
-        )
-      }
-    },
+    
     { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{i + 1}</span> },
     {
       key: 'user',
@@ -358,7 +340,25 @@ export default function Users() {
     { key: 'pendingCampaigns', label: renderSortHeader('Pending Campaign', 'pendingCampaigns'), render: (v, row) => <StatBadge value={row.stats?.pendingCampaigns} colorClass="bg-yellow-50 text-yellow-700 border border-yellow-200" /> },
     { key: 'pendingEmails', label: renderSortHeader('Pending Mails', 'pendingEmails'), render: (v, row) => <StatBadge value={row.stats?.pendingEmails} colorClass="bg-red-50 text-red-700 border border-red-200" /> },
     { key: 'createdAt', label: 'Created', render: (v) => v ? <span className="text-gray-500 whitespace-nowrap">{format(new Date(v), 'MMM d, yyyy')}</span> : '—' },
-    
+    {
+      key: 'actions', label: 'Action', width: '120px',
+      render: (_, row) => {
+        const isSelf = row.id === currentUser?.userId || row.id === currentUser?.id || row.email === currentUser?.email;
+        const canEdit = hasFullAccess || isSelf;
+        const canDelete = hasFullAccess;
+        
+        if (!canEdit) return null;
+        return (
+          <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity" style={{ perspective: 300 }}>
+            <motion.button whileHover={actionHover} onClick={() => openEdit(row)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></motion.button>
+            <motion.button whileHover={actionHover} onClick={() => openPw(row)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors" title="Change Password"><Key className="w-4 h-4" /></motion.button>
+            {canDelete && (
+              <motion.button whileHover={actionHover} onClick={() => { setDeleteTarget(row); setModal('delete') }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></motion.button>
+            )}
+          </div>
+        )
+      }
+    },
   ]
 
   const displayColumns = (activeTab === 'employee' && hasFullAccess) ? [
@@ -473,7 +473,7 @@ export default function Users() {
       </motion.div>
 
       {/* Create modal */}
-      <Modal open={modal === 'create'} onClose={() => setModal(null)} title="Create User" overflowVisible>
+      <Modal open={modal === 'create'} onClose={() => setModal(null)} title="Create User">
         <div className="space-y-4">
           <Input label="Name" error={formErrors.name} value={form.name || ''} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFormErrors(err => ({ ...err, name: '' })); }} placeholder="Full name" required />
           <Input label="Email" type="email" error={formErrors.email} value={form.email || ''} onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setFormErrors(err => ({ ...err, email: '' })); }} placeholder="email@example.com" autoComplete="new-password" required />
@@ -530,7 +530,7 @@ export default function Users() {
       </Modal>
 
       {/* Edit modal */}
-      <Modal open={modal === 'edit'} onClose={() => setModal(null)} title="Edit User" overflowVisible>
+      <Modal open={modal === 'edit'} onClose={() => setModal(null)} title="Edit User">
         <div className="space-y-4">
           <Input label="Name" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <Input label="Phone Number" type="tel" value={form.phoneNumber || ''} onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))} placeholder="Phone number" />

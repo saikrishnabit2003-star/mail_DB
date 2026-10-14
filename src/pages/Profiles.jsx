@@ -36,9 +36,8 @@ const TABS = [
   { id: 'test', label: 'TEST', icon: Settings2 },
 ]
 const dateRange = [
-  { label: "Last 7 days", value: "last_7_days" },
-  { label: "Last 15 days", value: "last_15_days" },
   { label: "Last 30 days", value: "last_30_days" },
+  { label: "Last 3 months", value: "last_3_months" },
   { label: "Custom", value: "custom",icon:Calendar }
 ]
 const defaultForm = {
@@ -49,12 +48,15 @@ const defaultForm = {
     { name: 'Default', subject: '', body: '' },
   ],
   attachments: [],
-  filters: { country: [], state: [], industry: [], domain: [], University: [], type: [], mailSource: [] ,dateRange:""},
+  filters: {
+    country: [], state: [], industry: [], domain: [], University: [], type: [], mailSource: [],
+    date_filter: false
+  },
   filterLimit: 0,
   sendingOptions: { dailyLimit: 100, delayMin: Number(30), delayMax: Number(90) },
   promptSettings: { personalizeGreeting: true, improveGrammar: false, improveProfessionalism: false, aiRewrite: false, customInstruction: '' },
 }
-// const [showDatePicker, setShowDatePicker] = useState(false)
+
 const quillModules = {
   toolbar: [
     [{ 'size': ['10px', false, '18px', '32px'] }],
@@ -149,6 +151,9 @@ export default function Profiles() {
     queryFn: () => emailMasterService.getDropdownOptions(),
   })
   const dropdownOptions = dropdownData?.data?.data || {}
+  const dateRangeValue = form.filters?.date_range || ''
+  const customStartDate = form.filters?.start_date || ''
+  const customEndDate = form.filters?.end_date || ''
 
   const getErrorMessage = (e, fallback = 'Failed') => {
     const data = e.response?.data;
@@ -305,7 +310,20 @@ export default function Profiles() {
   }
 
   const checkFilterCount = async () => {
-    if (!form.filters || Object.values(form.filters).every(arr => !Array.isArray(arr) || arr.length === 0)) {
+    if (form.filters?.date_filter && (
+      !form.filters.date_range
+      || (form.filters.date_range === 'custom' && (!form.filters.start_date || !form.filters.end_date))
+    )) {
+      toast.error('Please select a complete date range')
+      return
+    }
+    const hasFilters = Object.entries(form.filters || {}).some(([key, value]) => {
+      if (key === 'date_filter') return false
+      if (Array.isArray(value)) return value.length > 0
+      if (typeof value === 'string') return value.trim().length > 0
+      return value === true
+    })
+    if (!hasFilters) {
       setFilterCount(null)
       return
     }
@@ -320,11 +338,35 @@ export default function Profiles() {
     }
   }
   const formatProfileForEdit = (profile) => {
+    const {
+      dateRange: legacyDateRange,
+      date_filter: storedDateFilter,
+      date_range: storedDateRange,
+      start_date: storedStartDate,
+      end_date: storedEndDate,
+      ...existingFilters
+    } = profile.filters || {}
+    const dateFilterEnabled = storedDateFilter ?? Boolean(storedDateRange || legacyDateRange)
+    const existingDateRange = storedDateRange
+      || (typeof legacyDateRange === 'string' ? legacyDateRange : legacyDateRange ? 'custom' : '')
+    const filters = {
+      ...defaultForm.filters,
+      ...existingFilters,
+      date_filter: dateFilterEnabled,
+      ...(dateFilterEnabled && existingDateRange ? { date_range: existingDateRange } : {}),
+      ...(dateFilterEnabled && existingDateRange === 'custom' && (storedStartDate || legacyDateRange?.start || legacyDateRange?.startDate)
+        ? { start_date: storedStartDate || legacyDateRange?.start || legacyDateRange?.startDate }
+        : {}),
+      ...(dateFilterEnabled && existingDateRange === 'custom' && (storedEndDate || legacyDateRange?.end || legacyDateRange?.endDate)
+        ? { end_date: storedEndDate || legacyDateRange?.end || legacyDateRange?.endDate }
+        : {}),
+    }
     if (profile.templates && Array.isArray(profile.templates)) {
-      return { ...profile, attachments: profile.attachments || [] }
+      return { ...profile, filters, attachments: profile.attachments || [] }
     }
     return {
       ...profile,
+      filters,
       templates: [{ id: 'default', name: 'Default Template', subject: profile.subject || '', body: profile.body || '', weight: 1 }],
       attachments: profile.attachments || []
     }
@@ -333,6 +375,7 @@ export default function Profiles() {
   const openModal = (type, profile = null) => {
     setActiveTab('info')
     setFilterCount(null)
+    setShowDatePicker(false)
     setTestEmail('')
     setFilterLimitError('')
     setTemplateErrors([])
@@ -348,6 +391,14 @@ export default function Profiles() {
   }
 
   const handleSave = () => {
+    if (form.filters?.date_filter && (
+      !form.filters.date_range
+      || (form.filters.date_range === 'custom' && (!form.filters.start_date || !form.filters.end_date))
+    )) {
+      setActiveTab('filters')
+      return toast.error('Please select a complete date range')
+    }
+
     if (isAdmin(user) && modal === 'create' && !form.employeeId && !selectedEmployeeId) {
       setActiveTab('info')
       return toast.error('Please select an employee for this profile')
@@ -372,7 +423,7 @@ export default function Profiles() {
     }
 
     const limit = form.filterLimit ? parseInt(form.filterLimit, 10) : null;
-    console.log(limit);
+    // console.log(limit);
     if (limit !== null && (isNaN(limit) || limit < 1)) {
       setActiveTab('filters')
       setFilterLimitError('Filter Limit must be at least 1')
@@ -527,7 +578,7 @@ export default function Profiles() {
           </div>
 
           {/* ── Tab Content ── */}
-          <div className="flex-1 overflow-y-auto space-y-4">
+          <div className="flex-1 space-y-4">
 
             {/* INFO TAB */}
             <motion.div {...pane('info', 'space-y-4')}>
@@ -753,43 +804,85 @@ export default function Profiles() {
                   options={(dropdownOptions.university || []).map(c => ({ label: c, value: c }))}
                   placeholder="Select universities..."
                 />
-                <SearchableSelect
-                label="date range"
-                value={form.filters?.dateRange || []}
-                onChange={val => setForm(f => ({ ...f, filters:{...f.filters,dateRange: val || ''} }))}
-                options={(dateRange || []).map(s => ({ label: s.label, value: s.value }))}
-                placeholder="Select dates range"
-                ></SearchableSelect>
-                {form.filters?.dateRange === 'custom' && (
-              <div className="flex-[1.5] min-w-[250px] relative">
-                <label className="block text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Date Range</label>
-                <div 
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-pointer flex items-center justify-between hover:border-primary/50 transition-colors h-[38px]"
-                  onClick={() => setShowDatePicker(!showDatePicker)}
-                >
-                  <span>
-                    {form.filters?.dateRange 
-                      ? `${form.filters?.dateRange?.startDate} - ${form.filters?.dateRange?.endDate}` 
-                      : 'Select Date Range'}
-                  </span>
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                </div>
-                {showDatePicker && (
-                  <div className="absolute top-full right-0 mt-2 z-50">
-                    <DateRangePicker 
-                      startDate={form.filters?.dateRange?.startDate} 
-                      endDate={form.filters?.dateRange?.endDate} 
-                      onChange={(dates) => {
-                        setForm(f => ({ ...f, filters: { ...f.filters, dateRange: dates } }));
-                        if (dates.start && dates.end) {
-                          setShowDatePicker(false);
+                <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!form.filters?.date_filter}
+                    onChange={e => {
+                      const enabled = e.target.checked
+                      setForm(f => {
+                        const { date_range, start_date, end_date, ...filters } = f.filters
+                        return { ...f, filters: { ...filters, date_filter: enabled } }
+                      })
+                      if (!enabled) setShowDatePicker(false)
+                    }}
+                    className="rounded border-gray-300 text-primary-600"
+                  />
+                  <span>Filter by date range</span>
+                </label>
+                {form.filters?.date_filter && (
+                  <>
+                    <SearchableSelect
+                      label="Date Range"
+                      value={dateRangeValue}
+                      onChange={val => setForm(f => {
+                        const { start_date, end_date, ...filters } = f.filters
+                        return {
+                          ...f,
+                          filters: {
+                            ...filters,
+                            date_filter: true,
+                            ...(val ? { date_range: val } : {})
+                          }
                         }
-                      }} 
+                      })}
+                      options={dateRange.map(s => ({ label: s.label, value: s.value }))}
+                      placeholder="Select dates range"
                     />
-                  </div>
+                    {dateRangeValue === 'custom' && (
+                      <div className="min-w-[200px] relative mt-2">
+                        <label className="block text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Date Range</label>
+                        <div
+                          className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-pointer flex items-center justify-between hover:border-primary/50 transition-colors h-[38px]"
+                          onClick={() => setShowDatePicker(!showDatePicker)}
+                        >
+                          <span>
+                            {customStartDate && customEndDate
+                              ? `${customStartDate} - ${customEndDate}`
+                              : customStartDate
+                                ? `${customStartDate} - Select end date`
+                                : 'Select Date Range'}
+                          </span>
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                        </div>
+                        {showDatePicker && (
+                          <div className="absolute top-full right-0 mt-2 z-50">
+                            <DateRangePicker
+                              startDate={customStartDate}
+                              endDate={customEndDate}
+                              onChange={(dates) => {
+                                setForm(f => {
+                                  const { start_date, end_date, ...filters } = f.filters
+                                  return {
+                                    ...f,
+                                    filters: {
+                                      ...filters,
+                                      date_filter: true,
+                                      date_range: 'custom',
+                                      ...(dates.start ? { start_date: dates.start } : {}),
+                                      ...(dates.end ? { end_date: dates.end } : {})
+                                    }
+                                  }
+                                })
+                                if (dates.start && dates.end) setShowDatePicker(false)
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
-              </div>
-            )}
               </div>
 
               <Input
@@ -816,7 +909,9 @@ export default function Profiles() {
               </label>
 
               <div className="border border-gray-200 rounded-xl p-4 space-y-2">
-                <label className="block text-xs font-semibold text-gray-600">Mail Source</label>
+                <label className="block text-xs font-semibold text-gray-600">Mail Source
+                  <span className="text-red-400 text-xs ml-1">{"(Leave unchecked to include all sources)"}</span>
+                </label>
                 <div className="flex gap-4 flex-wrap">
                   {['Google Scholar', 'University', 'Other'].map(src => (
                     <label key={src} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -836,7 +931,7 @@ export default function Profiles() {
                     </label>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400">Leave unchecked to include all sources</p>
+                {/* <p className="text-xs text-gray-400">Leave unchecked to include all sources</p> */}
               </div>
 
               <p className="text-xs text-gray-400">Separate multiple values with commas.</p>

@@ -200,7 +200,7 @@ export default function AdminDashboard() {
   })
 
   const d = data?.data?.data
-  console.log('Admin Dashboard Data:', d)
+  // console.log('Admin Dashboard Data:', d)
 
   if (isLoading) return (
     <div className="flex flex-col items-center justify-center h-96 gap-4">
@@ -289,8 +289,8 @@ export default function AdminDashboard() {
             <div>
               <h2 className="text-lg font-bold mb-2 text-slate-500 uppercase tracking-wider text-xs">Campaign Metrics</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <EnhancedStatCard label="Total Campaigns" value={d?.totalCampaigns} icon={Activity} color="green" subtitle="All time" onDoubleClick={() => { nav("/campaigns")  }} />
-                <EnhancedStatCard label="Running Campaigns" value={d?.runningCampaigns} icon={Play} color="cyan" subtitle="Active now" onDoubleClick={() => { nav("/campaigns") }}/>
+                <EnhancedStatCard label="Total Campaigns" value={d?.totalCampaigns || 0} icon={Activity} color="green" subtitle="All time" onDoubleClick={() => { nav("/campaigns")  }} />
+                <EnhancedStatCard label="Running Campaigns" value={d?.runningCampaigns || 0} icon={Play} color="cyan" subtitle="Active now" onDoubleClick={() => { nav("/campaigns") }}/>
               </div>
             </div>
             
@@ -301,11 +301,11 @@ export default function AdminDashboard() {
         <motion.div variants={itemVariants}>
           <h2 className="text-lg font-bold mb-2 text-slate-500 uppercase tracking-wider text-xs">Core Metrics</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
-            <EnhancedStatCard label="Total Uploads" value={d?.totalUploads} icon={Database} color="cyan" subtitle="CSV/Excel files" onDoubleClick={() => { nav("/email-master") }} />
-            <EnhancedStatCard label="Total Profiles" value={d?.totalProfiles} icon={Mail} color="green" subtitle="Overall Profile Counts" onDoubleClick={() => { nav("/profiles") }}/>
-            <EnhancedStatCard label="Active Profiles" value={d?.activeProfiles} icon={UserCheck} color="purple" subtitle="Currently Active Profiles" onDoubleClick={() => { nav("/profiles") }}/>
-            <EnhancedStatCard label="Overall Sent" value={d?.overallSent} icon={Send} color="green" subtitle="Total Sended Counts" />
-            <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent} icon={Send} color="cyan" subtitle="Mon - Sun" />
+            <EnhancedStatCard label="Total Uploads" value={d?.totalUploads || 0} icon={Database} color="cyan" subtitle="CSV/Excel files" onDoubleClick={() => { nav("/email-master") }} />
+            <EnhancedStatCard label="Total Profiles" value={d?.totalProfiles || 0} icon={Mail} color="green" subtitle="Overall Profile Counts" onDoubleClick={() => { nav("/profiles") }}/>
+            <EnhancedStatCard label="Active Profiles" value={d?.activeProfiles || 0} icon={UserCheck} color="purple" subtitle="Currently Active Profiles" onDoubleClick={() => { nav("/profiles") }}/>
+            <EnhancedStatCard label="Overall Sent" value={d?.overallSent || 0} icon={Send} color="green" subtitle="Total Sended Counts" />
+            <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} icon={Send} color="cyan" subtitle="Mon - Sun" />
           </div>
         </motion.div>
       </div>

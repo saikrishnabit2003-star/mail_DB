@@ -195,7 +195,7 @@ export default function EmployeeDashboard() {
   })
 
   const d = data?.data?.data
-  console.log("EMPLOYEE DASHBOARD RESPONSE:", d)
+  // console.log("EMPLOYEE DASHBOARD RESPONSE:", d)
 
   if (authLoading || !user || isLoading) return (
     <div className="flex items-center justify-center h-64">
@@ -253,6 +253,8 @@ export default function EmployeeDashboard() {
         </motion.div>
       )}
 
+      {/*  */}
+
       {/* Light panel behind the cards */}
       <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 p-6 space-y-8 shadow-inner">
         {/* Global Overview Stats */}
@@ -261,13 +263,13 @@ export default function EmployeeDashboard() {
             <Activity className="w-3.5 h-3.5" /> Global Overview
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <LightStatCard label="Uploads" value={d?.totalUploadCount || 0} sub="All files" icon={Database} color="purple" />
-            <LightStatCard label="Profiles" value={d?.activeProfiles || 0} sub="Total profiles" icon={Users} color="blue" />
+            <LightStatCard label="Uploads" value={d?.totalUploadCount || 0} sub="All files" icon={Database} color="purple"  onDoubleClick={() => nav("/")}/>
+            <LightStatCard label="Profiles" value={d?.activeProfiles || 0} sub="Total profiles" icon={Users} color="blue" onDoubleClick={() => nav("/profiles")} />
             
             <LightStatCard label="Overall Sent" value={d?.overallSent || 0} sub="All time sent" icon={Send} color="green" />
             <LightStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} sub="Mon - Sun" icon={Send} color="cyan" />
             <LightStatCard label="Campaigns" value={d?.totalCampaigns || 0} sub="Total created" icon={TrendingUp} color="indigo" onDoubleClick={() => nav("/campaigns")} />
-            <LightStatCard label="Running" value={d?.runningCampaigns || 0} sub="Active campaigns" icon={Play} color="pink" />
+            <LightStatCard label="Running" value={d?.runningCampaigns || 0} sub="Active campaigns" icon={Play} color="pink" onDoubleClick={() => nav("/campaigns")} />
           </div>
         </motion.div>
 

@@ -168,6 +168,17 @@ export default function ProfileEmails() {
   }
 
   const columns = [
+    {
+      key: 'actions', label: 'Actions', width: '60px',
+      render: (_, row) => (
+        <motion.button
+          whileHover={reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }}
+          style={{ transformPerspective: 300 }}
+          onClick={() => setDeleteId(row.id)}
+          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+        ><Trash2 className="w-4 h-4" /></motion.button>
+      )
+    },
     { 
       key: 'sno',  
       label: 'S.No',
@@ -197,17 +208,7 @@ export default function ProfileEmails() {
     },
     { key: 'sentDate',    label: 'Sent At', render: v => v ? new Date(v).toLocaleString() : '—' },
     { key: 'retryCount',  label: 'Retries', render: v => v ?? 0 },
-    {
-      key: 'actions', label: '',
-      render: (_, row) => (
-        <motion.button
-          whileHover={reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }}
-          style={{ transformPerspective: 300 }}
-          onClick={() => setDeleteId(row.id)}
-          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-        ><Trash2 className="w-4 h-4" /></motion.button>
-      )
-    }
+    
   ]
 
   return (
