@@ -280,7 +280,7 @@ export default function AdminDashboard() {
               <div>
                 <h2 className="text-lg font-bold mb-2 text-slate-500 uppercase tracking-wider text-xs">Your Activity</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <EnhancedStatCard label="Your Uploads" value={d?.adminOwnUploads} icon={Database} color="purple" subtitle="Files you uploaded" />
+                  <EnhancedStatCard label="Your Uploads" value={d?.adminOwnUploads} icon={Database} color="purple" subtitle="Files you uploaded"  />
                   <EnhancedStatCard label="Your Team's Uploads" value={d?.assignedEmployeeUploads} icon={Users2} color="cyan" subtitle="Assigned employees" />
                 </div>
               </div>
@@ -290,7 +290,7 @@ export default function AdminDashboard() {
               <h2 className="text-lg font-bold mb-2 text-slate-500 uppercase tracking-wider text-xs">Campaign Metrics</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <EnhancedStatCard label="Total Campaigns" value={d?.totalCampaigns || 0} icon={Activity} color="green" subtitle="All time" onDoubleClick={() => { nav("/campaigns")  }} />
-                <EnhancedStatCard label="Running Campaigns" value={d?.runningCampaigns || 0} icon={Play} color="cyan" subtitle="Active now" onDoubleClick={() => { nav("/campaigns") }}/>
+                <EnhancedStatCard label="Running Campaigns" value={d?.runningCampaigns || 0} icon={Play} color="cyan" subtitle="Active now" />
               </div>
             </div>
             
@@ -303,7 +303,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
             <EnhancedStatCard label="Total Uploads" value={d?.totalUploads || 0} icon={Database} color="cyan" subtitle="CSV/Excel files" onDoubleClick={() => { nav("/email-master") }} />
             <EnhancedStatCard label="Total Profiles" value={d?.totalProfiles || 0} icon={Mail} color="green" subtitle="Overall Profile Counts" onDoubleClick={() => { nav("/profiles") }}/>
-            <EnhancedStatCard label="Active Profiles" value={d?.activeProfiles || 0} icon={UserCheck} color="purple" subtitle="Currently Active Profiles" onDoubleClick={() => { nav("/profiles") }}/>
+            <EnhancedStatCard label="Active Profiles" value={d?.activeProfiles || 0} icon={UserCheck} color="purple" subtitle="Currently Active Profiles" />
             <EnhancedStatCard label="Overall Sent" value={d?.overallSent || 0} icon={Send} color="green" subtitle="Total Sended Counts" />
             <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} icon={Send} color="cyan" subtitle="Mon - Sun" />
           </div>
