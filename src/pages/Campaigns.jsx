@@ -51,12 +51,18 @@ const pageBtn = 'p-1.5 rounded-lg text-slate-500 transition-colors hover:bg-blue
 // Accent per campaign status (visual only)
 const statusAccent = (status) => {
   switch (status) {
-    case 'running': return 'from-emerald-400 to-teal-500'
+    case 'running':
+    case 'processing': return 'from-emerald-400 to-teal-500'
     case 'paused': return 'from-amber-400 to-orange-500'
     case 'completed': return 'from-sky-400 to-blue-500'
     case 'failed': return 'from-rose-400 to-red-500'
     default: return 'from-violet-400 to-indigo-500'
   }
+}
+
+const hasUsableReminderTemplate = (template) => {
+  const body = typeof template?.body === 'string' ? template.body : ''
+  return body.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/gi, ' ').trim().length > 0
 }
 
 export default function Campaigns() {
@@ -75,7 +81,8 @@ export default function Campaigns() {
     campaignName: '', 
     profileId: '', 
     dailyLimit: '',
-    employeeId: ''
+    employeeId: '',
+    mailType: 'draft'
   })
   const [scheduleForm, setScheduleForm] = useState({
     campaignName: '',
@@ -84,25 +91,36 @@ export default function Campaigns() {
     scheduledTime: '',
     dailyLimit: '',
     employeeId: '',
+    mailType: 'draft',
     maxRetries: 3,
     recurrenceType: 'daily',  // 'once', 'daily', 'weekly'
     recurrenceDays: [],  // [0-6] for Mon-Sun
     recurrenceEndDate: '',  // YYYY-MM-DD
   })
   const [scheduleErrors, setScheduleErrors] = useState({})
+  // pending, running, paused, completed, failed, waiting_for_mails, scheduled,
+  const campaignStatuses = [{ value: 'running', label: 'Running' },{value: 'scheduled', label: 'Scheduled'}, { value: 'paused', label: 'Paused' }, { value: 'completed', label: 'Completed' }, { value: 'failed', label: 'Failed' }]
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-
+  const [selectedStatus, setSelectedStatus] = useState('all')
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['campaigns', selectedEmployeeId, page, pageSize],
-    queryFn: () => campaignsService.list(selectedEmployeeId, page, pageSize),
+    queryKey: ['campaigns', selectedEmployeeId, selectedStatus, page, pageSize],
+    queryFn: () => campaignsService.list(selectedEmployeeId, selectedStatus, page, pageSize),
     refetchInterval: 15000,
     placeholderData: (prev) => prev,
   })
   const { data: profilesData } = useQuery({
     queryKey: ['profiles', selectedEmployeeId],
-    queryFn: () => profilesService.list(selectedEmployeeId ? { employeeId: selectedEmployeeId } : {}),
+    queryFn: () => profilesService.list(selectedEmployeeId || undefined),
+  })
+  const { data: startProfilesData } = useQuery({
+    queryKey: ['campaign-profiles', form.employeeId || selectedEmployeeId],
+    queryFn: () => profilesService.list(form.employeeId || selectedEmployeeId || undefined),
+  })
+  const { data: scheduleProfilesData } = useQuery({
+    queryKey: ['campaign-profiles', scheduleForm.employeeId || selectedEmployeeId],
+    queryFn: () => profilesService.list(scheduleForm.employeeId || selectedEmployeeId || undefined),
   })
   const { data: employeesData } = useQuery({
     queryKey: ['employees'],
@@ -115,12 +133,30 @@ export default function Campaigns() {
   const total = rawData?.total || campaigns.length
   const totalPages = rawData?.totalPages || Math.ceil(total / pageSize) || 1
   const profiles  = profilesData?.data?.data || []
+  const startProfiles = startProfilesData?.data?.data || []
+  const scheduleProfiles = scheduleProfilesData?.data?.data || []
   const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
+  const { data: startProfileDetails, isFetching: isFetchingStartProfile, isError: startProfileError } = useQuery({
+    queryKey: ['campaign-profile-details', form.profileId, form.employeeId || selectedEmployeeId],
+    queryFn: () => profilesService.getById(form.profileId, form.employeeId || selectedEmployeeId),
+    enabled: !!form.profileId && form.mailType === 'reminder',
+  })
+  const { data: scheduleProfileDetails, isFetching: isFetchingScheduleProfile, isError: scheduleProfileError } = useQuery({
+    queryKey: ['campaign-profile-details', scheduleForm.profileId, scheduleForm.employeeId || selectedEmployeeId],
+    queryFn: () => profilesService.getById(scheduleForm.profileId, scheduleForm.employeeId || selectedEmployeeId),
+    enabled: !!scheduleForm.profileId && scheduleForm.mailType === 'reminder',
+  })
+  const startReminderTemplates = startProfileDetails?.data?.data?.reminderTemplates
+    || profiles.find(profile => profile.id === form.profileId)?.reminderTemplates
+    || []
+  const scheduleReminderTemplates = scheduleProfileDetails?.data?.data?.reminderTemplates
+    || profiles.find(profile => profile.id === scheduleForm.profileId)?.reminderTemplates
+    || []
   // Own data = no employee selected (partial admin viewing their own campaigns)
   const isOwnData = !selectedEmployeeId
 
   const startMut = useMutation({
-    mutationFn: (d) => campaignsService.start(d, selectedEmployeeId),
+    mutationFn: ({ employeeId, ...data }) => campaignsService.start(data, employeeId || selectedEmployeeId),
     onSuccess: (res) => {
       if (res?.data?.success === false) {
         return toast.error(res.data.message || 'Failed to start')
@@ -133,12 +169,24 @@ export default function Campaigns() {
   })
   const pauseMut = useMutation({
     mutationFn: (id) => campaignsService.pause(id, selectedEmployeeId),
-    onSuccess: () => { qc.invalidateQueries(['campaigns']); toast.success('Paused') },
+    onSuccess: async (res) => {
+      if (res?.data?.success === false) {
+        return toast.error(res.data.message || 'Failed to pause')
+      }
+      await qc.invalidateQueries({ queryKey: ['campaigns'] })
+      toast.success('Paused')
+    },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to pause'),
   })
   const resumeMut = useMutation({
     mutationFn: (id) => campaignsService.resume(id, selectedEmployeeId),
-    onSuccess: () => { qc.invalidateQueries(['campaigns']); toast.success('Resumed') },
+    onSuccess: async (res) => {
+      if (res?.data?.success === false) {
+        return toast.error(res.data.message || 'Failed to resume')
+      }
+      await qc.invalidateQueries({ queryKey: ['campaigns'] })
+      toast.success('Resumed')
+    },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to resume'),
   })
   const deleteMut = useMutation({
@@ -152,7 +200,7 @@ export default function Campaigns() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to update'),
   })
   const scheduleMut = useMutation({
-    mutationFn: (data) => campaignsService.schedule(data, selectedEmployeeId),
+    mutationFn: ({ employeeId, ...data }) => campaignsService.schedule(data, employeeId || selectedEmployeeId),
     onSuccess: (res) => { 
       if (res?.data?.success === false) {
         return toast.error(res.data.message || 'Failed to schedule')
@@ -167,6 +215,7 @@ export default function Campaigns() {
         scheduledTime: '', 
         dailyLimit: '', 
         employeeId: '',
+        mailType: 'draft',
         maxRetries: 3,
         recurrenceType: 'daily',
         recurrenceDays: [],
@@ -182,11 +231,20 @@ export default function Campaigns() {
 
   const handleStart = () => {
     if (!form.campaignName || !form.profileId) return toast.error('Campaign name and profile required')
+    if (form.mailType === 'reminder') {
+      if (isFetchingStartProfile) return toast.error('Loading profile reminder templates. Please try again shortly.')
+      if (startProfileError) return toast.error('Could not load the selected profile reminder templates.')
+      if (!startReminderTemplates.some(hasUsableReminderTemplate)) {
+        return toast.error('Add at least one reminder template with a body in the selected profile before starting a Reminder campaign.')
+      }
+    }
     
     startMut.mutate({ 
       campaignName: form.campaignName,
       profileId: form.profileId, 
-      dailyLimit: form.dailyLimit ? Number(form.dailyLimit) : undefined 
+      dailyLimit: form.dailyLimit ? Number(form.dailyLimit) : undefined,
+      mailType: form.mailType,
+      employeeId: form.employeeId || selectedEmployeeId,
     })
   }
 
@@ -211,6 +269,14 @@ export default function Campaigns() {
     if (scheduleForm.recurrenceType === 'weekly' && scheduleForm.recurrenceDays.length === 0) {
       return toast.error('Select at least one day for weekly recurrence')
     }
+
+    if (scheduleForm.mailType === 'reminder') {
+      if (isFetchingScheduleProfile) return toast.error('Loading profile reminder templates. Please try again shortly.')
+      if (scheduleProfileError) return toast.error('Could not load the selected profile reminder templates.')
+      if (!scheduleReminderTemplates.some(hasUsableReminderTemplate)) {
+        return toast.error('Add at least one reminder template with a body in the selected profile before scheduling a Reminder campaign.')
+      }
+    }
     
     // Get browser timezone offset for backend
     const now = new Date()
@@ -229,6 +295,8 @@ export default function Campaigns() {
       recurrenceEndDate: scheduleForm.recurrenceEndDate || null,
       dailyLimit: scheduleForm.dailyLimit ? Number(scheduleForm.dailyLimit) : undefined,
       maxRetries: Number(scheduleForm.maxRetries),
+      mailType: scheduleForm.mailType,
+      employeeId: scheduleForm.employeeId || selectedEmployeeId,
     })
   }
 
@@ -260,23 +328,34 @@ export default function Campaigns() {
               />
             </div>
           )}
+          <div className="min-w-60">
+              <SearchableSelect 
+                value={selectedStatus || 'all'} 
+                onChange={(val) => setSelectedStatus(val || null)} 
+                placeholder="Select Status..."
+                options={[
+                  { label: 'ALL', value: 'all' },
+                  ...campaignStatuses
+                ]}
+              />
+            </div>
         </div>
         <div className="flex gap-2">
           <motion.div whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.97 }}>
-            <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '' }); setModal(true) }}>
-              <Plus className="w-4 h-4" /> Start Campaign
+            <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '', mailType: 'draft' }); setModal(true) }}>
+              <Plus className="w-4 h-4" /> Start
             </Button>
           </motion.div>
           <motion.div whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.97 }}>
             <Button variant="secondary" size="sm" onClick={() => { 
               setScheduleForm({ 
-                campaignName: '', profileId: '', scheduledFor: '', scheduledTime: '', dailyLimit: '', employeeId: '', maxRetries: 3, 
+                campaignName: '', profileId: '', scheduledFor: '', scheduledTime: '', dailyLimit: '', employeeId: '', mailType: 'draft', maxRetries: 3,
                 recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '' 
               }); 
               setScheduleErrors({});
               setScheduleModal(true) 
             }}>
-              <Calendar className="w-4 h-4" /> Schedule Campaign
+              <Calendar className="w-4 h-4" /> Schedule
             </Button>
           </motion.div>
         </div>
@@ -319,27 +398,36 @@ export default function Campaigns() {
                   <div className="relative z-10 flex items-start justify-between mb-4 pl-2">
                     <div>
                       <h3 className="flex items-center gap-2 font-semibold text-lg text-slate-900">
-                        {c.status === 'running' && (
+                        {(c.status === 'running' || c.status === 'processing') && (
                           <span className="relative flex h-2.5 w-2.5">
                             {!reduce && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
                             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
                           </span>
                         )}
-                        {c.campaignName}
+                        {c.campaignName}{c.mailType && (
+                        <span className="mt-1 inline-flex rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                          {c.mailType === 'reminder' ? 'Reminder' : 'Draft'}
+                        </span>
+                      )}
                       </h3>
                       <p className="text-xs text-slate-500 mt-1">
                         Profile: {c.profileSnapshot?.profileName || '—'}
                         {c.dailyLimit && <> · {c.dailyLimit}/day</>}
                       </p>
+                      {/* {c.mailType && (
+                        <p className="mt-1 inline-flex rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                          {c.mailType === 'reminder' ? 'Reminder' : 'Draft'}
+                        </p>
+                      )} */}
                       {c.scheduledFor && (
                         <p className="text-xs text-blue-600 mt-1">
                           <Calendar className="w-3 h-3 inline mr-1" />
                           Scheduled for {c.scheduledForDisplay || c.scheduledFor.substring(0, 16).replace('T', ' ')}
                         </p>
                       )}
-                      {c.errorMessage && (
-                        <p className="text-xs text-red-600 mt-1">
-                          Error: {c.errorMessage.substring(0, 80)}...
+                      {c.status === 'failed' && typeof c.errorMessage === 'string' && c.errorMessage.trim() && (
+                        <p className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700 break-words">
+                          <span className="font-semibold">Failure reason:</span> {c.errorMessage}
                         </p>
                       )}
                     </div>
@@ -365,7 +453,7 @@ export default function Campaigns() {
                         transition={{ duration: 1, ease: 'easeOut' }}
                         className="relative h-2.5 rounded-full bg-gradient-to-r from-sky-400 via-violet-400 to-emerald-400 shadow-md shadow-blue-500/30 overflow-hidden"
                       >
-                        {c.status === 'running' && !reduce && (
+                        {(c.status === 'running' || c.status === 'processing') && !reduce && (
                           <motion.span
                             className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_10px_3px_rgba(255,255,255,0.9)]"
                             animate={{ opacity: [0.4, 1, 0.4], scale: [0.9, 1.2, 0.9] }}
@@ -399,7 +487,7 @@ export default function Campaigns() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 pt-4 border-t border-slate-100 flex-wrap relative z-10 pl-2">
-                    {c.status === 'running' && (
+                    {(c.status === 'running' || c.status === 'processing') && (
                       <Button variant="secondary" size="sm" onClick={() => pauseMut.mutate(c.id)} loading={pauseMut.isPending}>
                         <Pause className="w-3.5 h-3.5" /> Pause
                       </Button>
@@ -485,7 +573,18 @@ export default function Campaigns() {
           {isAdmin(user) && (
             <SearchableSelect label="Employee" value={form.employeeId || ''} onChange={(val) => setForm(p => ({ ...p, employeeId: val }))} placeholder="Select an employee..." options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))} />
           )}
-          <SearchableSelect label="Profile" value={form.profileId} onChange={(val) => setForm(p => ({ ...p, profileId: val }))} disabled={isAdmin(user) && !form.employeeId} placeholder={isAdmin(user) && !form.employeeId ? 'Select an employee first...' : 'Select a profile...'} options={profiles.filter(p => !isAdmin(user) || p.employeeId === form.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))} />
+          <SearchableSelect label="Profile" value={form.profileId} onChange={(val) => setForm(p => ({ ...p, profileId: val }))} disabled={isAdmin(user) && !form.employeeId} placeholder={isAdmin(user) && !form.employeeId ? 'Select an employee first...' : 'Select a profile...'} options={startProfiles.filter(p => !isAdmin(user) || p.employeeId === form.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))} />
+          <SearchableSelect
+            label="Campaign Type"
+            value={form.mailType}
+            onChange={val => setForm(p => ({ ...p, mailType: val }))}
+            options={[{ label: 'Draft', value: 'draft' }, { label: 'Reminder', value: 'reminder' }]}
+          />
+          {form.mailType === 'reminder' && (
+            <p className="text-xs text-slate-500">
+              Reminder emails use the profile’s weighted reminder templates and the recipient’s original email subject and thread.
+            </p>
+          )}
           <Input label="Daily Limit (optional)" type="number" value={form.dailyLimit} onChange={f('dailyLimit')} placeholder="Leave empty to use profile default" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
@@ -539,8 +638,19 @@ export default function Campaigns() {
             error={scheduleErrors.profileId}
             required
             placeholder={isAdmin(user) && !scheduleForm.employeeId ? 'Select an employee first...' : 'Select a profile...'}
-            options={profiles.filter(p => !isAdmin(user) || p.employeeId === scheduleForm.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))}
+            options={scheduleProfiles.filter(p => !isAdmin(user) || p.employeeId === scheduleForm.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))}
           />
+          <SearchableSelect
+            label="Campaign Type"
+            value={scheduleForm.mailType}
+            onChange={val => setScheduleForm(p => ({ ...p, mailType: val }))}
+            options={[{ label: 'Draft', value: 'draft' }, { label: 'Reminder', value: 'reminder' }]}
+          />
+          {scheduleForm.mailType === 'reminder' && (
+            <p className="text-xs text-slate-500">
+              Reminder emails use the profile’s weighted reminder templates and the recipient’s original email subject and thread.
+            </p>
+          )}
           
           <div className="grid grid-cols-2 gap-3">
             {scheduleForm.recurrenceType === 'once' && (

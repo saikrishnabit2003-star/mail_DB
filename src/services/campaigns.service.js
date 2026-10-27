@@ -1,9 +1,10 @@
 import api from '../lib/axios'
 
 export const campaignsService = {
-  list: (employeeId = null, page = 1, pageSize = 25) => {
+  list: (employeeId = null, selectedStatus = null, page = 1, pageSize = 25) => {
     const params = { page, pageSize }
     if (employeeId) params.employeeId = employeeId
+    if (selectedStatus) params.status = selectedStatus
     return api.get('/campaigns', { params })
   },
   getById: (id, employeeId = null) => {

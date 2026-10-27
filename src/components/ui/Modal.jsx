@@ -4,7 +4,7 @@ import { cn } from './Button'
 import { createPortal } from 'react-dom'
 import { useState, useEffect } from 'react'
 
-export default function Modal({ open, onClose, title, children, size = 'md', overflowVisible = false }) {
+export default function Modal({ open, onClose, title, children, size = 'md', overflowVisible = false, className, bodyClassName }) {
   const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
   const [mounted, setMounted] = useState(false)
 
@@ -34,7 +34,8 @@ export default function Modal({ open, onClose, title, children, size = 'md', ove
             className={cn(
               "relative bg-card text-card-foreground rounded-2xl shadow-2xl border border-border w-full max-h-[90vh] flex flex-col",
               !overflowVisible && "overflow-hidden",
-              sizes[size]
+              sizes[size],
+              className
             )}
           >
             <div className="flex flex-shrink-0 items-center justify-between p-6 border-b border-border">
@@ -43,7 +44,7 @@ export default function Modal({ open, onClose, title, children, size = 'md', ove
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className={cn("p-6", !overflowVisible && "overflow-y-auto")}>{children}</div>
+            <div className={cn("p-6", !overflowVisible && "overflow-y-auto", bodyClassName)}>{children}</div>
           </motion.div>
         </div>
       )}

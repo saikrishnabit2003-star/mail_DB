@@ -26,6 +26,15 @@ export default function Header({ title, toggleSidebar }) {
   const iconHover = reduce ? undefined : { rotateY: 18, rotateX: -10, scale: 1.12, z: 20 }
   const iconTap = reduce ? undefined : { scale: 0.9, rotateY: 0 }
   const iconStyle = { transformPerspective: 400, transformStyle: 'preserve-3d' }
+  // Bell: the 3D tilt is applied to the icon INSIDE the button (via variants), so the
+  // clickable button itself never moves, scales or rotates and its click area stays fixed.
+  const bellVariants = reduce
+    ? {}
+    : {
+        rest: { rotateY: 0, rotateX: 0, scale: 1 },
+        hover: { rotateY: 18, rotateX: -10, scale: 1.12 },
+        tap: { scale: 0.9 },
+      }
   // dropdown panels fold open from the top edge
   // (nothing starts invisible, so the panels can never get stuck hidden)
   const panelMotion = reduce
@@ -120,6 +129,18 @@ export default function Header({ title, toggleSidebar }) {
     toast.success('Logged out')
   }
 
+  // Bell click: only a real click on the bell toggles the list.
+  const handleBellClick = (e) => {
+    if (e.detail > 0) {
+      // mouse/touch click: ignore any phantom click whose position is outside the bell
+      const r = e.currentTarget.getBoundingClientRect()
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return
+    }
+    setNotifOpen(v => !v)
+    // drop focus after a mouse click so a later Enter/Space can't re-trigger the bell
+    if (e.detail > 0) e.currentTarget.blur()
+  }
+
   return (
     <>
       <motion.header
@@ -167,20 +188,24 @@ export default function Header({ title, toggleSidebar }) {
           {/* Notifications Dropdown */}
           <div className="relative" ref={notifRef}>
             <motion.button
-              onClick={() => setNotifOpen(v => !v)}
-              whileHover={iconHover}
-              whileTap={iconTap}
-              style={iconStyle}
+              type="button"
+              onClick={handleBellClick}
+              initial="rest"
+              whileHover="hover"
+              whileTap="tap"
               className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors focus:outline-none"
             >
-              {/* bell swings from the top while there are unread items */}
-              <motion.span
-                className="flex"
-                style={{ transformOrigin: 'top center' }}
-                animate={unread > 0 && !reduce ? { rotate: [0, 16, -14, 10, -6, 0] } : { rotate: 0 }}
-                transition={{ duration: 1.2, repeat: unread > 0 ? Infinity : 0, repeatDelay: 3 }}
-              >
-                <Bell className="w-5 h-5" />
+              {/* 3D tilt happens on this inner wrapper, not on the button */}
+              <motion.span variants={bellVariants} style={iconStyle} className="flex">
+                {/* bell swings from the top while there are unread items */}
+                <motion.span
+                  className="flex"
+                  style={{ transformOrigin: 'top center' }}
+                  animate={unread > 0 && !reduce ? { rotate: [0, 16, -14, 10, -6, 0] } : { rotate: 0 }}
+                  transition={{ duration: 1.2, repeat: unread > 0 ? Infinity : 0, repeatDelay: 3 }}
+                >
+                  <Bell className="w-5 h-5" />
+                </motion.span>
               </motion.span>
               {unread > 0 && (
                 <motion.span
@@ -188,7 +213,7 @@ export default function Header({ title, toggleSidebar }) {
                   initial={reduce ? false : { scale: 0.7, rotateY: 90 }}
                   animate={{ scale: 1, rotateY: 0 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                  className="absolute top-1 right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-background"
+                  className="absolute top-1 right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-background pointer-events-none"
                 >
                   {!reduce && <span className="absolute inset-0 rounded-full bg-destructive opacity-60 animate-ping" />}
                   <span className="relative">{unread > 9 ? '9+' : unread}</span>

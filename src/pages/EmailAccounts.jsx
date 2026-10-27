@@ -14,7 +14,6 @@ import { Plus, Pencil, Trash2, Wifi, CheckCircle, AlertCircle, Mail, PowerOff, S
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { motion, animate, useReducedMotion } from 'framer-motion'
-
 const blank = { email: '', accountType: 'gmail_smtp', displayName: '', smtpHost: 'smtp.gmail.com', smtpPort: 587, useTls: true, appPassword: '' }
 
 // ---- visual-only helpers ----
@@ -79,6 +78,7 @@ export default function EmailAccounts() {
   const [smtpTestResult, setSmtpTestResult] = useState(null) // null, 'testing', 'success', 'error'
   const [smtpTestMessage, setSmtpTestMessage] = useState('')
   const [autoFillProfileId, setAutoFillProfileId] = useState('')
+  const [gmailApiFileName, setGmailApiFileName] = useState('')
 
   // ---- 3D animation helpers (visual only) ----
   // table flips in when the page opens
@@ -243,6 +243,9 @@ export default function EmailAccounts() {
     if (isAdmin(user) && modal === 'create' && !form.employeeId && !selectedEmployeeId) {
       return toast.error('Please select an employee for this account')
     }
+    if (modal === 'create' && form.accountType === 'gmail_api' && !form.credentials) {
+      return toast.error('Please attach a valid Gmail API JSON credentials file')
+    }
     
     if (modal === 'create') {
       createMut.mutate({ ...form, employeeId: form.employeeId || selectedEmployeeId })
@@ -252,6 +255,32 @@ export default function EmailAccounts() {
   }
 
   const f = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }))
+
+  const handleGmailApiFile = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      event.target.value = ''
+      setGmailApiFileName('')
+      setForm(prev => ({ ...prev, credentials: undefined }))
+      return toast.error('Please select a .json file')
+    }
+
+    try {
+      const credentials = JSON.parse(await file.text())
+      if (!credentials || typeof credentials !== 'object' || Array.isArray(credentials)) {
+        throw new Error('Credentials must be a JSON object')
+      }
+      setForm(prev => ({ ...prev, credentials }))
+      setGmailApiFileName(file.name)
+    } catch {
+      event.target.value = ''
+      setGmailApiFileName('')
+      setForm(prev => ({ ...prev, credentials: undefined }))
+      toast.error('The selected file must contain valid JSON credentials')
+    }
+  }
 
   const columns = [
     {
@@ -278,11 +307,11 @@ export default function EmailAccounts() {
     { key: 'accountType', label: 'Type', render: v => <Badge label={v} /> },
     { key: 'smtpHost', label: 'SMTP Host', render: v => <span className="text-gray-500">{v}</span> },
     { key: 'smtpPort', label: 'Port', render: v => <span className="text-gray-500">{v}</span> },
+    // { key: 'apiCredentials', label: 'API Credentials', render: v => <span className="text-gray-500">{v}</span> },
     { key: 'isActive', label: 'Status', render: v => <Badge label={v ? 'active' : 'inactive'} variant={v ? 'success' : 'default'} /> },
     { key: 'lastUsedAt', label: 'Last Used', render: v => v ? <span className="text-gray-500">{format(new Date(v), 'MMM d, yyyy')}</span> : <span className="text-gray-300">—</span> },
-    
   ]
-
+// 
   return (
     <div className="relative space-y-5 rounded-3xl border border-white/60 bg-gradient-to-br from-sky-100 via-indigo-100/70 to-cyan-100 p-5 shadow-inner">
       {/* soft light orbs */}
@@ -307,7 +336,7 @@ export default function EmailAccounts() {
         </div>
         {(!isPartialAdmin || isOwnData) && (
           <motion.div whileHover={reduce ? undefined : { y: -3, rotateX: 8, scale: 1.04 }} style={{ transformPerspective: 600 }}>
-            <Button size="sm" onClick={() => { setForm(blank); setModal('create') }}>
+            <Button size="sm" onClick={() => { setForm(blank); setGmailApiFileName(''); setModal('create') }}>
               <Plus className="w-4 h-4" /> Add Account
             </Button>
           </motion.div>
@@ -329,7 +358,7 @@ export default function EmailAccounts() {
         <Table columns={columns} data={accounts} loading={isLoading} emptyMsg="No email accounts yet" />
       </motion.div>
 
-      <Modal open={modal === 'create' || modal === 'edit'} onClose={() => { setModal(null); setSmtpTestResult(null); setAutoFillProfileId(''); }} title={modal === 'create' ? 'Add Email Account' : 'Edit Account'} size="md">
+      <Modal open={modal === 'create' || modal === 'edit'} onClose={() => { setModal(null); setSmtpTestResult(null); setAutoFillProfileId(''); setGmailApiFileName(''); }} title={modal === 'create' ? 'Add Email Account' : 'Edit Account'} size="md">
         <div className="space-y-4">
           {isAdmin(user) && modal !== 'edit' && (
             <SearchableSelect
@@ -365,39 +394,67 @@ export default function EmailAccounts() {
             placeholder="you@gmail.com" 
             autoComplete="new-password"
           />
-          <div className="space-y-1">
-            <Input 
-              label={modal === 'create' ? 'App Password' : 'App Password (leave blank to keep current)'}
-              type="password" 
-              value={form.appPassword || ''} 
-              onChange={f('appPassword')} 
-              placeholder={modal === 'create' ? 'Gmail app password' : 'Enter new password if changing'} 
-              autoComplete="new-password"
-            />
-            {form.accountType === 'smtp' ? (
-              <p className="text-xs text-gray-500">
-                Click <a href="https://mail.zoho.in/zm/#mail/folder/inbox" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> → Open My Account → First enable 2-Step Verification (MFA) → Open Security → App Passwords → Click Generate New Password → Enter an app name → Click Generate → Copy the generated 12-character App Password and paste it here.
-              </p>
-            ) : (
-              <p className="text-xs text-gray-500">
-                Click <a href="https://accounts.google.com/signin/v2/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> → Open your Google Account settings → First enable 2-Step Verification (MFA) → Search for "App Passwords" → Enter your account password when prompted → Generate an App Password → Copy the generated password → Paste it here.
-              </p>
-            )}
-          </div>
+          
+            {form.accountType!=='gmail_api' && (
+              <div className="space-y-1">
+                <Input
+                  label={modal === 'create' ? 'App Password' : 'App Password (leave blank to keep current)'}
+                  type="password"
+                  value={form.appPassword || ''}
+                  onChange={f('appPassword')}
+                placeholder={modal === 'create' ? 'Gmail app password' : 'Enter new password if changing'}
+                autoComplete="new-password"
+              />
+              {form.accountType === 'smtp' ? (
+                <p className="text-xs text-gray-500">
+                  Click <a href="https://mail.zoho.in/zm/#mail/folder/inbox" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> → Open My Account → First enable 2-Step Verification (MFA) → Open Security → App Passwords → Click Generate New Password → Enter an app name → Click Generate → Copy the generated 12-character App Password and paste it here.
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Click <a href="https://accounts.google.com/signin/v2/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">this link</a> → Open your Google Account settings → First enable 2-Step Verification (MFA) → Search for "App Passwords" → Enter your account password when prompted → Generate an App Password → Copy the generated password → Paste it here.
+                </p>
+              )}
+            </div>)}
           <SearchableSelect label="Account Type" value={form.accountType || 'gmail_smtp'} onChange={(val) => {
+            if (val !== 'gmail_api') setGmailApiFileName('')
             setForm(prev => {
-              if (val === 'gmail_smtp') {
-                return { ...prev, accountType: val, smtpHost: 'smtp.gmail.com', smtpPort: 587 };
-              } else if (val === 'smtp') {
-                return { ...prev, accountType: val, smtpHost: 'smtp.zoho.in', smtpPort: 465 };
+              const next = { ...prev, accountType: val }
+              if (val !== 'gmail_api') {
+                delete next.credentials
               }
-              return { ...prev, accountType: val };
+              if (val === 'gmail_smtp') {
+                return { ...next, smtpHost: 'smtp.gmail.com', smtpPort: 587 };
+              } else if (val === 'smtp') {
+                return { ...next, smtpHost: 'smtp.zoho.in', smtpPort: 465 };
+              }
+              return next
             });
-          }} options={[{ label: 'Gmail SMTP', value: 'gmail_smtp' }, { label: 'Zoho SMTP', value: 'smtp' }]} />
-          <div className="grid grid-cols-2 gap-4">
+          }} 
+          options={[{ label: 'Gmail SMTP', value: 'gmail_smtp' }, { label: 'Zoho SMTP', value: 'smtp' }]} 
+          // options={[{ label: 'Gmail SMTP', value: 'gmail_smtp' }, { label: 'Zoho SMTP', value: 'smtp' },{label:'Gmail API', value: 'gmail_api'}]} 
+          />
+          {form.accountType!=='gmail_api' ?(
+            <div className="grid grid-cols-2 gap-4">
             <Input label="SMTP Host" value={form.smtpHost || ''} onChange={f('smtpHost')} />
             <Input label="SMTP Port" type="number" value={form.smtpPort || 587} onChange={f('smtpPort')} />
           </div>
+          ):(
+            <div className="space-y-1">
+              <label htmlFor="gmail-api-credentials" className="block text-sm font-medium text-gray-700">
+                Attach JSON Credentials
+              </label>
+              <input
+                id="gmail-api-credentials"
+                type="file"
+                accept=".json,application/json"
+                onChange={handleGmailApiFile}
+                className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {/* {gmailApiFileName && <p className="text-xs text-gray-500">{gmailApiFileName}</p>} */}
+              <p className="text-xs text-gray-500">Select a valid .json credentials file.</p>
+            </div>
+          )}
+
           {modal === 'edit' && (
             <label className="flex items-center gap-2 cursor-pointer">
               <input

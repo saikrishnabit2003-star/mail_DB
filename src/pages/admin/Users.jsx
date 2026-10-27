@@ -478,7 +478,7 @@ export default function Users() {
           <Input label="Name" error={formErrors.name} value={form.name || ''} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFormErrors(err => ({ ...err, name: '' })); }} placeholder="Full name" required />
           <Input label="Email" type="email" error={formErrors.email} value={form.email || ''} onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setFormErrors(err => ({ ...err, email: '' })); }} placeholder="email@example.com" autoComplete="new-password" required />
           <Input label="Password" type="password" error={formErrors.password} value={form.password || ''} onChange={e => { setForm(f => ({ ...f, password: e.target.value })); setFormErrors(err => ({ ...err, password: '' })); }} placeholder="Min 8 characters" minLength={8} autoComplete="new-password" required />
-          <Input label="Phone Number" type="tel" value={form.phoneNumber || ''} onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))} placeholder="Phone number" />
+          <Input label="Phone Number" type="number" value={form.phoneNumber || ''} onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))} placeholder="Phone number" />
           <SearchableSelect
             label="Role"
             value={form.role || 'employee'}
@@ -533,7 +533,7 @@ export default function Users() {
       <Modal open={modal === 'edit'} onClose={() => setModal(null)} title="Edit User">
         <div className="space-y-4">
           <Input label="Name" value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          <Input label="Phone Number" type="tel" value={form.phoneNumber || ''} onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))} placeholder="Phone number" />
+          <Input label="Phones Number" type="number" minLength="10" maxLength="15" value={form.phoneNumber || ''} onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))} placeholder="Phone number" />
           <SearchableSelect
             label="Status"
             value={form.status || 'active'}

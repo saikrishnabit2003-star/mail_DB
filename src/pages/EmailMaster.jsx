@@ -21,6 +21,22 @@ import { dashboardService } from '../services/dashboard.service'
 import ProfileReplies from './ProfileReplies'
 import { useDebounce } from '../hooks/useDebounce'
 
+const getWebsiteUrl = (value) => {
+  const website = String(value || '').trim()
+  if (!website) return null
+
+  const candidate = /^[a-z][a-z\d+.-]*:/i.test(website)
+    ? website
+    : `https://${website.replace(/^\/\//, '')}`
+
+  try {
+    const url = new URL(candidate)
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : null
+  } catch {
+    return null
+  }
+}
+
 export default function EmailMaster() {
   const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
@@ -68,7 +84,7 @@ export default function EmailMaster() {
   const [historyEndDate, setHistoryEndDate] = useState('')
   const [historyEmployee, setHistoryEmployee] = useState('')
   const [historyPage, setHistoryPage] = useState(1)
-  const [historyPageSize, setHistoryPageSize] = useState(20)
+  const [historyPageSize, setHistoryPageSize] = useState(100)
   const [historySortField, setHistorySortField] = useState(null)
   const [historySortOrder, setHistorySortOrder] = useState('desc')
   // Upload Wizard States
@@ -579,9 +595,12 @@ export default function EmailMaster() {
     { key: 'university', label: 'University', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search) : '—'}</div> },
     {
       key: 'website', label: 'Website',
-      render: v => v
-        ? <a href={v} target="_blank" rel="noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
-        : '—'
+      render: v => {
+        const websiteUrl = getWebsiteUrl(v)
+        return websiteUrl
+          ? <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
+          : v || '—'
+      }
     },
     { key: 'country', label: 'Country', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search, countryFilter) : '—'}</div> },
     { key: 'state', label: 'State', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search, stateFilter) : '—'}</div> },
@@ -605,7 +624,7 @@ export default function EmailMaster() {
     {
       key: 'linkedin', label: 'LinkedIn',
       render: v => v
-        ? <a href={v.startsWith('http') ? v : `https://${v}`} target="_blank" rel="noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
+        ? <a href={v} target="_blank" rel="noreferrer" className="inline-block px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors border border-blue-100">View</a>
         : '—'
     },
     {
@@ -1009,6 +1028,7 @@ export default function EmailMaster() {
                     <option value={20}>20</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
+                    <option value={500}>500</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-4">
@@ -1053,7 +1073,7 @@ export default function EmailMaster() {
                   </motion.div>
                   <div>
                     <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Total Replies</p>
-                    <p className="text-2xl font-bold text-gray-900">{replyStats.summary?.totalReplies ?? 0}</p>
+                    <p className="text-2xl font-bold text-blue-500">{replyStats.summary?.totalReplies ?? 0}</p>
                   </div>
                 </motion.div>
                 <motion.div {...hoverCard} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
@@ -1105,7 +1125,7 @@ export default function EmailMaster() {
                               <div className="flex items-center gap-2.5">
                                 <motion.div
                                   whileHover={reduce ? undefined : { rotateY: 360 }}
-                                  transition={{ duration: 0.7, ease: 'easeInOut' }}
+                                  transition={{ duration: 0.5, ease: 'easeInOut' }}
                                   style={{ transformPerspective: 300 }}
                                   className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-white uppercase shrink-0"
                                 >
@@ -1120,7 +1140,7 @@ export default function EmailMaster() {
                               </div>
                             </td>
                             <td className="px-5 py-4 text-center">
-                              <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">{row.totalReplies}</span>
+                              <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">{row.totalReplies}</span>
                             </td>
                             <td className="px-5 py-4 text-center">
                               <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
@@ -1179,7 +1199,7 @@ export default function EmailMaster() {
                     setMailSourceFilter([])
                     setPage(1)
                   }}
-                  className="text-xs font-medium text-red-500 hover:text-red-600 hover:underline transition-all cursor-pointer"
+                  className="text-l font-medium p-2 text-red-500 hover:text-red-600  hover:bg-red-100 rounded-2xl transition-all cursor-pointer"
                 >
                   Clear All
                 </button>
@@ -1188,21 +1208,21 @@ export default function EmailMaster() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {/* The search is now in the table header */}
               <MultiSelect
-                label="Country"
+                label={`Country - (${countries.length})`}
                 value={countryFilter}
                 onChange={val => { setCountryFilter(val); setPage(1) }}
                 options={countries.map(c => ({ label: c, value: c }))}
                 placeholder="All Countries"
               />
               <MultiSelect
-                label="State"
+                label={`State - (${states.length})`}
                 value={stateFilter}
                 onChange={val => { setStateFilter(val); setPage(1) }}
                 options={states.map(s => ({ label: s, value: s }))}
                 placeholder="All States"
               />
               <MultiSelect
-                label="Domain"
+                label={`Domain - (${domains.length})`}
                 value={domainFilter}
                 onChange={val => { setDomainFilter(val); setPage(1) }}
                 options={domains.map(d => ({ label: d, value: d }))}
@@ -1216,14 +1236,14 @@ export default function EmailMaster() {
                 placeholder="All Industries"
               /> */}
               <MultiSelect
-                label="Uploader"
+                label={`Uploader - (${uploaders.length})`}
                 value={uploaderFilter}
                 onChange={val => { setUploaderFilter(val); setPage(1) }}
                 options={uploaders.map(u => ({ label: u.name, value: u.id }))}
                 placeholder="All Uploaders"
               />
               <MultiSelect
-                label="Mail Source"
+                label="Mail Source - (3)"
                 value={mailSourceFilter}
                 onChange={val => { setMailSourceFilter(val); setPage(1) }}
                 options={[
@@ -1317,7 +1337,7 @@ export default function EmailMaster() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span>Show:</span>
                   <select
@@ -1331,7 +1351,7 @@ export default function EmailMaster() {
                     <option value={500}>500</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPage(Math.max(1, page - 1))}
                     disabled={page === 1}

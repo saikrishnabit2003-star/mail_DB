@@ -10,7 +10,7 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import SearchableSelect from '../components/ui/SearchableSelect'
-import { Download, ListChecks, RefreshCw, RotateCcw, Trash2, Zap, Search, ChevronLeft, ChevronRight, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { Download, ListChecks, RefreshCw, RotateCcw, Trash2, Zap, Search, ChevronLeft, ChevronRight, Clock, CheckCircle, XCircle, ArrowRightLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx'
 import { motion, animate, useReducedMotion } from 'framer-motion'
@@ -71,8 +71,10 @@ export default function ProfileEmails() {
   const qc = useQueryClient()
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null)
   const [selectedProfile, setSelectedProfile] = useState('')
+  const [mailType, setMailType] = useState('draft')
   const [genModal, setGenModal] = useState(false)
   const [genLimit, setGenLimit] = useState(null)
+  const [convertModal, setConvertModal] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
   const [clearModal, setClearModal] = useState(false)
   const [search, setSearch] = useState('')
@@ -107,39 +109,63 @@ export default function ProfileEmails() {
   const profiles = profilesData?.data?.data || []
 
   const { data: statsData, refetch: refetchStats } = useQuery({
-    queryKey: ['profile-email-stats', selectedProfile],
-    queryFn: () => profileEmailsService.stats(selectedProfile),
+    queryKey: ['profile-email-stats', selectedProfile, selectedEmployeeId],
+    queryFn: () => profileEmailsService.stats(selectedProfile, selectedEmployeeId),
     enabled: !!selectedProfile,
   })
 
   const { data: emailsData, isLoading } = useQuery({
-    queryKey: ['profile-emails', selectedProfile, page, pageSize, debouncedSearch],
-    queryFn: () => profileEmailsService.list(selectedProfile, { page, pageSize, search: debouncedSearch || undefined }),
+    queryKey: ['profile-emails', selectedProfile, mailType, page, pageSize, debouncedSearch, selectedEmployeeId],
+    queryFn: () => profileEmailsService.list(
+      selectedProfile,
+      { mailType, page, pageSize, search: debouncedSearch || undefined },
+      selectedEmployeeId
+    ),
     enabled: !!selectedProfile,
   })
 
-  const stats  = statsData?.data?.data || {}
+  const allStats = statsData?.data?.data || {}
+  const stats = allStats.byType?.[mailType] || allStats
   const paginatedData = emailsData?.data?.data || {}
   const emails = Array.isArray(paginatedData?.data) ? paginatedData.data : []
 
+  const refreshProfileEmails = () => {
+    qc.invalidateQueries({ queryKey: ['profile-emails', selectedProfile], refetchType: 'all' })
+    refetchStats()
+  }
+
   const genMut = useMutation({
     mutationFn: () => profileEmailsService.generate(selectedProfile, genLimit, null, false),
-    onSuccess: (r) => { qc.invalidateQueries(['profile-emails', selectedProfile]); refetchStats(); setGenModal(false); toast.success(r.data?.message || 'Generated') },
+    onSuccess: (r) => { refreshProfileEmails(); setGenModal(false); toast.success(r.data?.message || 'Generated') },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed'),
   })
+  const convertMut = useMutation({
+    mutationFn: () => profileEmailsService.convertToReminders(selectedProfile, selectedEmployeeId),
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: ['profile-emails', selectedProfile], refetchType: 'all' })
+      await refetchStats()
+      setConvertModal(false)
+      const counts = res.data?.data || res.data || {}
+      toast.success(
+        `${counts.convertedCount ?? 0} sent drafts queued for reminder campaigns; ` +
+        `${counts.skippedMissingThreadData ?? 0} skipped because original-email threading details were missing.`
+      )
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to move sent drafts to reminders'),
+  })
   const retryMut = useMutation({
-    mutationFn: () => profileEmailsService.retryFailed(selectedProfile),
-    onSuccess: () => { qc.invalidateQueries(['profile-emails', selectedProfile]); toast.success('Retrying failed emails') },
+    mutationFn: () => profileEmailsService.retryFailed(selectedProfile, selectedEmployeeId),
+    onSuccess: () => { refreshProfileEmails(); toast.success('Retrying failed emails across Draft and Reminder rows') },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to retry'),
   })
   const clearMut = useMutation({
-    mutationFn: () => profileEmailsService.clear(selectedProfile),
-    onSuccess: () => { qc.invalidateQueries(['profile-emails', selectedProfile]); toast.success('Cleared') },
+    mutationFn: () => profileEmailsService.clear(selectedProfile, selectedEmployeeId),
+    onSuccess: () => { refreshProfileEmails(); toast.success('Cleared all Draft and Reminder rows') },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to clear'),
   })
   const deleteMut = useMutation({
     mutationFn: (id) => profileEmailsService.deleteRecord(id),
-    onSuccess: () => { qc.invalidateQueries(['profile-emails', selectedProfile]); toast.success('Deleted') },
+    onSuccess: () => { refreshProfileEmails(); toast.success('Deleted') },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to delete'),
   })
 
@@ -185,9 +211,9 @@ export default function ProfileEmails() {
       render: (_, row, idx) => (page - 1) * pageSize + idx + 1,
       width: '60px'
     },
-    { key: 'fullName',    label: 'Name',    render: v => v || '—' },
-    { key: 'email',       label: 'Email' },
-    { key: 'university',     label: 'University', render: v => v || '—' },
+    { key: 'fullName', label: 'Name',    render: v => v || '—' },
+    { key: 'email', label: 'Email' },
+    { key: 'university', label: 'University', render: v => v || '—' },
     { 
       key: 'sendStatus',  
       label: 'Status',  
@@ -230,6 +256,7 @@ export default function ProfileEmails() {
                 onChange={val => {
                   setSelectedEmployeeId(val || null)
                   setSelectedProfile('') // reset profile when employee changes
+                  setPage(1)
                 }}
                 placeholder={user?.role === 'super_admin' ? 'All Employees' : 'Select Employee...'}
                 options={[
@@ -245,7 +272,7 @@ export default function ProfileEmails() {
             <SearchableSelect
               label={isAdmin(user) ? 'Step 2 — Select Profile' : 'Select Profile'}
               value={selectedProfile}
-              onChange={val => setSelectedProfile(val || '')}
+              onChange={val => { setSelectedProfile(val || ''); setPage(1) }}
               disabled={isAdmin(user) && !selectedEmployeeId && user?.role !== 'super_admin'}
               placeholder={isAdmin(user) && !selectedEmployeeId && user?.role !== 'super_admin' ? 'Select an employee first...' : 'Choose a profile...'}
               options={profiles.map(p => ({ label: p.profileName, value: p.id }))}
@@ -254,14 +281,23 @@ export default function ProfileEmails() {
 
           {selectedProfile && (
             <>
-              <motion.div {...btnHover}>
-                <Button size="sm" onClick={() => setGenModal(true)}>
-                  <Zap className="w-4 h-4" /> Generate List
-                </Button>
-              </motion.div>
+              {mailType === 'draft' && (
+                <>
+                  <motion.div {...btnHover}>
+                    <Button size="sm" onClick={() => setGenModal(true)}>
+                      <Zap className="w-4 h-4" /> Generate
+                    </Button>
+                  </motion.div>
+                  <motion.div {...btnHover}>
+                    <Button variant="secondary" size="sm" onClick={() => setConvertModal(true)} loading={convertMut.isPending}>
+                      <ArrowRightLeft className="w-4 h-4" /> Move
+                    </Button>
+                  </motion.div>
+                </>
+              )}
               <motion.div {...btnHover}>
                 <Button variant="secondary" size="sm" onClick={() => retryMut.mutate()} loading={retryMut.isPending}>
-                  <RotateCcw className="w-4 h-4" /> Retry Failed
+                  <RotateCcw className="w-4 h-4" /> Retry
                 </Button>
               </motion.div>
               <motion.div {...btnHover}>
@@ -271,7 +307,7 @@ export default function ProfileEmails() {
               </motion.div>
               <motion.div {...btnHover}>
                 <Button variant="danger" size="sm" onClick={() => setClearModal(true)} loading={clearMut.isPending}>
-                  <Trash2 className="w-4 h-4" /> Clear All
+                  <Trash2 className="w-4 h-4" /> Clear
                 </Button>
               </motion.div>
             </>
@@ -280,13 +316,34 @@ export default function ProfileEmails() {
       </motion.div>
 
       {/* Stats */}
-      {selectedProfile && Object.keys(stats).length > 0 && (
+      {selectedProfile && (
         <div className="relative space-y-4">
+          <div className="inline-flex rounded-xl border border-white/80 bg-white/80 p-1 shadow-sm" role="tablist" aria-label="Profile email type">
+            {[
+              { id: 'draft', label: 'Draft' },
+              { id: 'reminder', label: 'Reminder' },
+            ].map(type => (
+              <button
+                key={type.id}
+                type="button"
+                role="tab"
+                aria-selected={mailType === type.id}
+                onClick={() => { setMailType(type.id); setPage(1) }}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                  mailType === type.id ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {type.label}
+              </button>
+            ))}
+          </div>
           <motion.div variants={gridVariants} initial="hidden" animate="show" className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatTile label="Total"   value={stats.total}   icon={ListChecks} gradient="from-blue-400 to-indigo-500"  text="text-blue-600" />
-            <StatTile label="Pending" value={stats.pending} icon={Clock}      gradient="from-amber-400 to-orange-500" text="text-amber-600" />
-            <StatTile label="Sent"    value={stats.sent}    icon={CheckCircle} gradient="from-emerald-400 to-teal-500" text="text-emerald-600" />
-            <StatTile label="Failed"  value={stats.failed}  icon={XCircle}    gradient="from-rose-400 to-pink-500"    text="text-rose-600" />
+            <StatTile label="Total" value={stats.total ?? 0} icon={ListChecks} gradient="from-blue-400 to-indigo-500" text="text-blue-600" />
+            <StatTile label="Pending" value={stats.pending ?? 0} icon={Clock} gradient="from-amber-400 to-orange-500" text="text-amber-600" />
+            {/* <StatTile label="Sending" value={stats.sending ?? 0} icon={RefreshCw} gradient="from-cyan-400 to-blue-500" text="text-cyan-600" /> */}
+            <StatTile label="Sent" value={stats.sent ?? 0} icon={CheckCircle} gradient="from-emerald-400 to-teal-500" text="text-emerald-600" />
+            <StatTile label="Failed" value={stats.failed ?? 0} icon={XCircle} gradient="from-rose-400 to-pink-500" text="text-rose-600" />
+            {/* <StatTile label="Skipped" value={stats.skipped ?? 0} icon={ListChecks} gradient="from-slate-400 to-gray-500" text="text-slate-600" /> */}
           </motion.div>
           <motion.div {...flip} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
@@ -315,9 +372,10 @@ export default function ProfileEmails() {
                     onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
                     className="border border-gray-200 rounded-md py-1 px-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
                   >
-                    <option value={20}>20</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
+                    <option value={200}>200</option>
+                    <option value={500}>500</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -340,7 +398,7 @@ export default function ProfileEmails() {
               </div>
             </div>
 
-            <Table columns={columns} data={emails} loading={isLoading} emptyMsg="No emails generated yet" />
+            <Table columns={columns} data={emails} loading={isLoading} emptyMsg={`No ${mailType} emails found`} />
           </motion.div>
         </div>
       )}
@@ -375,6 +433,21 @@ export default function ProfileEmails() {
         </div>
       </Modal>
 
+      <Modal open={convertModal} onClose={() => setConvertModal(false)} title="Move sent drafts to reminders">
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            This queues eligible sent Draft rows as Reminder rows and removes them from the Draft list. Drafts
+            without the original email threading details will be skipped.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setConvertModal(false)}>Cancel</Button>
+            <Button onClick={() => convertMut.mutate()} loading={convertMut.isPending}>
+              <ArrowRightLeft className="w-4 h-4" /> Move sent drafts
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Confirm Delete">
         <div className="space-y-4">
           <p className="text-gray-700">Are you sure you want to delete this email?</p>
@@ -387,7 +460,7 @@ export default function ProfileEmails() {
 
       <Modal open={clearModal} onClose={() => setClearModal(false)} title="Confirm Clear All">
         <div className="space-y-4">
-          <p className="text-gray-700">Are you sure you want to clear all emails for this profile?</p>
+          <p className="text-gray-700">Are you sure you want to clear the entire email list for this profile? This clears both Draft and Reminder rows, not just the selected tab.</p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setClearModal(false)}>Cancel</Button>
             <Button className="bg-red-600 hover:bg-red-700 text-white border-transparent" onClick={() => { clearMut.mutate(); setClearModal(false); }} loading={clearMut.isPending}>Clear All</Button>

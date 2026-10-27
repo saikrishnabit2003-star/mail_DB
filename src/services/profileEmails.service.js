@@ -20,6 +20,11 @@ export const profileEmailsService = {
     return api.get(`/profile-emails/${profileId}`, { params: allParams })
   },
 
+  convertToReminders: (profileId, employeeId = null) => {
+    const params = employeeId ? { employeeId } : {}
+    return api.post(`/profile-emails/${profileId}/convert-to-reminders`, null, { params })
+  },
+
   getRecord: (id) => api.get(`/profile-emails/record/${id}`),
 
   updateRecord: (id, data) => api.patch(`/profile-emails/record/${id}`, data),

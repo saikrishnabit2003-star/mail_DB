@@ -2,14 +2,53 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { optionsService } from '../../services/options.service'
 import { emailMasterService } from '../../services/emailMaster.service'
-import { Plus, Pencil, Trash2, Check, X, RefreshCw } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X, RefreshCw, Building2, Clock, Database } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
 import toast from 'react-hot-toast'
+import { motion, useReducedMotion } from 'framer-motion'
+
+// ---- visual-only helpers (nothing starts invisible, so nothing can get stuck hidden) ----
+const gridVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1 } },
+}
+const cardVariants = {
+  hidden: { y: 24, rotateX: -15, transformPerspective: 1000 },
+  show: { y: 0, rotateX: 0, transformPerspective: 1000, transition: { type: 'spring', stiffness: 260, damping: 24 } },
+}
+
+// card shell: gradient icon tile + title, soft lift on hover (no tilt, so inputs stay sharp)
+const SettingCard = ({ icon: Icon, gradient, title, children, className }) => {
+  const reduce = useReducedMotion()
+  return (
+    <motion.div variants={cardVariants} className={className}>
+      <motion.div
+        whileHover={reduce ? undefined : { y: -4 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+        className="relative overflow-hidden bg-white p-6 rounded-2xl shadow-lg shadow-blue-900/5 hover:shadow-xl hover:shadow-blue-900/15 border border-slate-200/80 transition-shadow"
+      >
+        <div className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full bg-gradient-to-br ${gradient} opacity-10`} />
+        <div className="relative mb-4 flex items-center gap-3">
+          <motion.div
+            animate={reduce ? {} : { y: [0, -3, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className={`inline-flex rounded-xl bg-gradient-to-br p-2.5 text-white shadow-lg ${gradient}`}
+          >
+            <Icon className="w-5 h-5" />
+          </motion.div>
+          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+        </div>
+        <div className="relative">{children}</div>
+      </motion.div>
+    </motion.div>
+  )
+}
 
 export default function Settings() {
   const qc = useQueryClient()
+  const reduce = useReducedMotion()
   const [newBranch, setNewBranch] = useState('')
   const [editingIndex, setEditingIndex] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -108,17 +147,23 @@ export default function Settings() {
     }
   }
 
+  // small icon buttons turn in 3D on hover
+  const actionHover = reduce ? undefined : { scale: 1.2, rotateY: 25, rotateX: -10 }
+  const btnHover = reduce ? {} : { whileHover: { y: -3, rotateX: 8, scale: 1.04 }, style: { transformPerspective: 600 } }
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="relative space-y-6 rounded-3xl border border-white/60 bg-gradient-to-br from-sky-100 via-indigo-100/70 to-cyan-100 p-5 shadow-inner">
+      {/* soft light orbs */}
+      <motion.div animate={reduce ? {} : { x: [0, -20, 0], y: [0, 15, 0] }} transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute right-10 top-4 h-64 w-64 rounded-full bg-white/50 blur-3xl" />
+      <motion.div animate={reduce ? {} : { x: [0, 20, 0], y: [0, -15, 0] }} transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute bottom-6 left-10 h-56 w-56 rounded-full bg-violet-200/40 blur-3xl" />
+
+      <div className="relative flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Settings</h2>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <motion.div variants={gridVariants} initial="hidden" animate="show" className="relative grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Branch Management */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Branch Management</h3>
-          
+        <SettingCard icon={Building2} gradient="from-blue-400 to-indigo-500" title="Branch Management">
           {isLoading ? (
             <p className="text-gray-500">Loading settings...</p>
           ) : (
@@ -132,9 +177,11 @@ export default function Settings() {
                     placeholder="e.g., VELLORE" 
                   />
                 </div>
-                <Button type="submit" >
-                  <Plus className="w-4 h-4" /> Add
-                </Button>
+                <motion.div {...btnHover}>
+                  <Button type="submit" >
+                    <Plus className="w-4 h-4" /> Add
+                  </Button>
+                </motion.div>
               </form>
 
               <div className="border border-gray-100 rounded-xl overflow-hidden">
@@ -152,7 +199,7 @@ export default function Settings() {
                       </tr>
                     ) : (
                       branches.map((branch, index) => (
-                        <tr key={index} className="hover:bg-gray-50/50">
+                        <tr key={index} className="hover:bg-sky-50/60 transition-colors">
                           <td className="px-4 py-3">
                             {editingIndex === index ? (
                               <input 
@@ -171,24 +218,24 @@ export default function Settings() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex items-center justify-end gap-1" style={{ perspective: 300 }}>
                               {editingIndex === index ? (
                                 <>
-                                  <button onClick={() => handleSaveEdit(index)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Save">
+                                  <motion.button whileHover={actionHover} onClick={() => handleSaveEdit(index)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Save">
                                     <Check className="w-4 h-4" />
-                                  </button>
-                                  <button onClick={() => setEditingIndex(null)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Cancel">
+                                  </motion.button>
+                                  <motion.button whileHover={actionHover} onClick={() => setEditingIndex(null)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Cancel">
                                     <X className="w-4 h-4" />
-                                  </button>
+                                  </motion.button>
                                 </>
                               ) : (
                                 <>
-                                  <button onClick={() => startEdit(index, branch)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+                                  <motion.button whileHover={actionHover} onClick={() => startEdit(index, branch)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                                     <Pencil className="w-4 h-4" />
-                                  </button>
-                                  <button onClick={() => setDeleteTarget({ index, branch })} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                  </motion.button>
+                                  <motion.button whileHover={actionHover} onClick={() => setDeleteTarget({ index, branch })} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                                     <Trash2 className="w-4 h-4" />
-                                  </button>
+                                  </motion.button>
                                 </>
                               )}
                             </div>
@@ -201,52 +248,55 @@ export default function Settings() {
               </div>
             </div>
           )}
-        </div>
+        </SettingCard>
 
-        {/* Cooldown Days Management */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Cooldown Days</h3>
-          
-          {isLoading ? (
-            <p className="text-gray-500">Loading settings...</p>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">Set the global cooldown period (in days) before an email can be contacted again.</p>
-              <form onSubmit={handleSaveCooldown} className="flex items-end gap-3">
-                <div className="flex-1">
-                  <Input 
-                    label="Cooldown Days" 
-                    type="number"
-                    value={cooldownValue} 
-                    onChange={e => setCooldownValue(e.target.value)} 
-                    placeholder="e.g., 20" 
-                    min={2}
-                    max={60}
-                    required
-                  />
-                </div>
-                <Button type="submit" loading={updateMut.isPending || createMut.isPending}>
-                  <Check className="w-4 h-4 mr-2" /> Save
-                </Button>
-              </form>
-            </div>
-          )}
-        </div>
+        <div className="space-y-6">
+          {/* Dropdown Refresh */}
+          <SettingCard icon={Database} gradient="from-emerald-400 to-teal-500" title="Dropdown Options">
+            <p className="text-sm text-gray-500 mb-4">Rebuild the dropdown options used in Email Master filters.</p>
+            <motion.div {...btnHover} className="inline-block">
+              <Button
+                onClick={() => rebuildDropdownsMut.mutate()}
+                loading={rebuildDropdownsMut.isPending}
+                disabled={rebuildDropdownsMut.isPending}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh Dropdowns
+              </Button>
+            </motion.div>
+          </SettingCard>
 
-        {/* Dropdown Refresh */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Dropdown Options</h3>
-          <p className="text-sm text-gray-500 mb-4">Rebuild the dropdown options used in Email Master filters.</p>
-          <Button
-            onClick={() => rebuildDropdownsMut.mutate()}
-            loading={rebuildDropdownsMut.isPending}
-            disabled={rebuildDropdownsMut.isPending}
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh Dropdowns
-          </Button>
+          {/* Cooldown Days Management */}
+          <SettingCard icon={Clock} gradient="from-amber-400 to-orange-500" title="Cooldown Days">
+            {isLoading ? (
+              <p className="text-gray-500">Loading settings...</p>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500">Set the global cooldown period (in days) before an email can be contacted again.</p>
+                <form onSubmit={handleSaveCooldown} className="flex items-end gap-3">
+                  <div className="flex-1">
+                    <Input 
+                      label="Cooldown Days" 
+                      type="number"
+                      value={cooldownValue} 
+                      onChange={e => setCooldownValue(e.target.value)} 
+                      placeholder="e.g., 20" 
+                      min={2}
+                      max={60}
+                      required
+                    />
+                  </div>
+                  <motion.div {...btnHover}>
+                    <Button type="submit" loading={updateMut.isPending || createMut.isPending}>
+                      <Check className="w-4 h-4 mr-2" /> Save
+                    </Button>
+                  </motion.div>
+                </form>
+              </div>
+            )}
+          </SettingCard>
         </div>
-      </div>
+      </motion.div>
 
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirm Delete">
         <div className="space-y-4">

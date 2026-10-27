@@ -1,4 +1,4 @@
-/**
+/*
  * Admin Campaigns Page
  * 
  * Allows admins to view and manage campaigns for selected employees.
@@ -147,6 +147,7 @@ export default function AdminCampaigns() {
               <thead>
                 <tr>
                   <th>Campaign Name</th>
+                  <th>Campaign Type</th>
                   <th>Status</th>
                   <th>Total Emails</th>
                   <th>Sent</th>
@@ -159,6 +160,7 @@ export default function AdminCampaigns() {
                 {campaigns.map((campaign) => (
                   <tr key={campaign.id}>
                     <td>{campaign.campaignName}</td>
+                    <td>{campaign.mailType ? (campaign.mailType === 'reminder' ? 'Reminder' : 'Draft') : '—'}</td>
                     <td>
                       <span className={`status-badge status-${campaign.status}`}>
                         {campaign.status}
@@ -260,24 +262,24 @@ export default function AdminCampaigns() {
           text-align: left;
           font-weight: 600;
           border-bottom: 2px solid #ddd;
-        }
+      }
 
-        .campaigns-table td {
-          padding: 0.75rem;
-          border-bottom: 1px solid #ddd;
-        }
+      .campaigns-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #ddd;
+      }
 
-        .campaigns-table tbody tr:hover {
-          background-color: #f5f5f5;
-        }
+      .campaigns-table tbody tr:hover {
+        background-color: #f5f5f5;
+      }
 
-        .status-badge {
-          display: inline-block;
-          padding: 0.25rem 0.75rem;
-          border-radius: 12px;
-          font-size: 0.85rem;
-          font-weight: 500;
-        }
+      .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
 
         .status-pending {
           background-color: #fff3cd;

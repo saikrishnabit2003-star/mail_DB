@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { profilesService } from '../services/profiles.service'
 import { optionsService } from '../services/options.service'
@@ -12,7 +12,7 @@ import SearchableSelect from '../components/ui/SearchableSelect'
 import DateRangePicker from '../components/ui/DateRangePicker'
 import MultiSelect from '../components/ui/MultiSelect'
 import { emailMasterService } from '../services/emailMaster.service'
-import { Plus, Pencil, Trash2, Power, PowerOff, Upload, X, Info, LayoutTemplate, Filter, Settings2, Calendar, University } from 'lucide-react'
+import { Plus, Pencil, Trash2, Power, PowerOff, Upload, X, Info, LayoutTemplate, Filter, Settings2, Calendar, University, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { motion, useReducedMotion } from 'framer-motion'
@@ -30,10 +30,18 @@ Quill.register(SizeStyle, true)
 
 const TABS = [
   { id: 'info', label: 'Info', icon: Info },
-  { id: 'templates', label: 'Templates', icon: LayoutTemplate },
+  { id: 'templates', label: 'D-Templates', icon: LayoutTemplate },
+  { id: 'reminder-templates', label: 'R-Templates', icon: LayoutTemplate },
+  // { id: 'r1-template', label: 'R1-Templates', icon: LayoutTemplate },
+  // { id: 'r2-template', label: 'R2-Templates', icon: LayoutTemplate },
   { id: 'filters', label: 'Filters', icon: Filter },
   { id: 'sending', label: 'Sending Options', icon: Settings2 },
   { id: 'test', label: 'TEST', icon: Settings2 },
+]
+const TEMPLATE_SECTIONS = [
+  { field: 'templates', tab: 'templates', label: 'Templates' },
+  // { field: 'r1Templates', tab: 'r1-template', label: 'R1-template' },
+  // { field: 'r2Templates', tab: 'r2-template', label: 'R2-template' },
 ]
 const dateRange = [
   { label: "Last 30 days", value: "last_30_days" },
@@ -47,6 +55,13 @@ const defaultForm = {
   templates: [
     { name: 'Default', subject: '', body: '' },
   ],
+  r1Templates: [
+    { name: 'Default', subject: '', body: '' },
+  ],
+  r2Templates: [
+    { name: 'Default', subject: '', body: '' },
+  ],
+  reminderTemplates: [],
   attachments: [],
   filters: {
     country: [], state: [], industry: [], domain: [], University: [], type: [], mailSource: [],
@@ -56,6 +71,12 @@ const defaultForm = {
   sendingOptions: { dailyLimit: 100, delayMin: Number(30), delayMax: Number(90) },
   promptSettings: { personalizeGreeting: true, improveGrammar: false, improveProfessionalism: false, aiRewrite: false, customInstruction: '' },
 }
+
+const formatReminderTemplates = (templates = []) => templates.map(({ name, body, weight }) => ({
+  ...(name?.trim() ? { name: name.trim() } : {}),
+  body,
+  ...(weight === '' || weight === null || weight === undefined ? {} : { weight: Number(weight) }),
+}))
 
 const quillModules = {
   toolbar: [
@@ -97,11 +118,14 @@ export default function Profiles() {
   const [activeTab, setActiveTab] = useState('info') // info, templates, filters, sending
   const [selected, setSelected] = useState(null)
   const [testEmail, setTestEmail] = useState('')
+  const [testMailType, setTestMailType] = useState('')
   const [testTemplateName, setTestTemplateName] = useState('')
   const [filterLimitError, setFilterLimitError] = useState(null)
-  const [templateErrors, setTemplateErrors] = useState([])
+  const [templateErrors, setTemplateErrors] = useState({})
+  const [reminderTemplateErrors, setReminderTemplateErrors] = useState([])
   const [sendingErrors, setSendingErrors] = useState({})
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const tabBarRef = useRef(null)
   // 3D helpers: modal tab content flips in each time its tab becomes active
   const paneVariants = {
     hide: reduce ? { opacity: 0 } : { opacity: 0, rotateX: -14, y: 18 },
@@ -166,6 +190,7 @@ export default function Profiles() {
   const createMut = useMutation({
     mutationFn: (d) => {
       const { employeeId, ...rest } = d;
+      rest.reminderTemplates = formatReminderTemplates(rest.reminderTemplates)
       return profilesService.create(rest, employeeId || selectedEmployeeId);
     },
     onSuccess: () => { qc.invalidateQueries(['profiles']); setModal(null); toast.success('Profile created') },
@@ -174,6 +199,7 @@ export default function Profiles() {
   const updateMut = useMutation({
     mutationFn: ({ id, d }) => {
       const { employeeId, ...rest } = d
+      rest.reminderTemplates = formatReminderTemplates(rest.reminderTemplates)
       // Pass employeeId as both form data (for reassignment) and keep selectedEmployeeId for context
       return profilesService.update(id, { ...rest, employeeId: employeeId || undefined }, selectedEmployeeId)
     },
@@ -194,8 +220,9 @@ export default function Profiles() {
   const testEmailMut = useMutation({
     mutationFn: (data) => profilesService.testEmail(selected.id, data, selectedEmployeeId),
     onSuccess: (res) => { 
-      const msg = res.data?.message || res.data?.data?.message || res.message || 'Test email sent successfully';
-      toast.success(msg);
+      const msg = [res.data?.message, res.data?.data?.message]
+        .find(message => typeof message === 'string' && message.trim())
+      toast.success(msg || 'Test email sent successfully')
     },
     onError: (e) => toast.error(getErrorMessage(e, 'Failed to send test email')),
   })
@@ -230,29 +257,114 @@ export default function Profiles() {
     setFilterLimitError('')
   }
 
-  const addTemplate = () => {
-    if (form.templates.length < 5) {
+  const addTemplate = (field) => {
+    if ((form[field] || []).length < 5) {
       setForm(prev => ({
         ...prev,
-        templates: [...prev.templates, { name: '', subject: '', body: '' }]
+        [field]: [...(prev[field] || []), { name: '', subject: '', body: '' }]
       }))
     }
   }
 
-  const removeTemplate = (idx) => {
-    if (form.templates.length > 1) {
+  const removeTemplate = (field, idx) => {
+    if ((form[field] || []).length > 1) {
       setForm(prev => ({
         ...prev,
-        templates: prev.templates.filter((_, i) => i !== idx)
+        [field]: prev[field].filter((_, i) => i !== idx)
+      }))
+      setTemplateErrors(prev => ({
+        ...prev,
+        [field]: (prev[field] || []).filter((_, i) => i !== idx)
       }))
     }
   }
 
-  const updateTemplate = (idx, field, value) => {
+  const updateTemplate = (templateField, idx, field, value) => {
     setForm(prev => ({
       ...prev,
-      templates: prev.templates.map((t, i) => i === idx ? { ...t, [field]: value } : t)
+      [templateField]: (prev[templateField] || []).map((t, i) => i === idx ? { ...t, [field]: value } : t)
     }))
+  }
+
+  const clearTemplateError = (templateField, idx, field) => {
+    setTemplateErrors(prev => ({
+      ...prev,
+      [templateField]: (prev[templateField] || []).map((errors, i) =>
+        i === idx ? { ...errors, [field]: undefined } : errors
+      )
+    }))
+  }
+
+  const renderTemplateEditor = (templateField) => {
+    const templates = form[templateField] || []
+    const errors = templateErrors[templateField] || []
+
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-500">up to 5 templates</p>
+          {templates.length < 5 && (
+            <Button size="sm" variant="secondary" onClick={() => addTemplate(templateField)}>
+              <Plus className="w-3 h-3" /> Add Template
+            </Button>
+          )}
+        </div>
+        {templates.map((template, idx) => (
+          <div key={idx} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-gray-800">Template {idx + 1}</span>
+                <span className="text-xs font-light text-gray-500">Use [name] for the client’s name</span>
+              </div>
+              {templates.length > 1 && (
+                <button
+                  onClick={() => removeTemplate(templateField, idx)}
+                  className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" /> Remove
+                </button>
+              )}
+            </div>
+            <Input
+              placeholder="Template name"
+              value={template.name}
+              onChange={e => {
+                updateTemplate(templateField, idx, 'name', e.target.value)
+                clearTemplateError(templateField, idx, 'name')
+              }}
+              error={errors[idx]?.name}
+            />
+            <Input
+              placeholder="Subject line"
+              value={template.subject}
+              onChange={e => {
+                updateTemplate(templateField, idx, 'subject', e.target.value)
+                clearTemplateError(templateField, idx, 'subject')
+              }}
+              error={errors[idx]?.subject}
+            />
+            <div className="space-y-1.5">
+              <div className={`bg-white rounded-lg border overflow-hidden ${errors[idx]?.body ? 'border-red-400 focus-within:ring-2 focus-within:ring-red-100' : 'border-gray-200'}`}>
+                {!!modal && (
+                  <ReactQuill
+                    theme="snow"
+                    modules={quillModules}
+                    value={template.body}
+                    onChange={value => {
+                      updateTemplate(templateField, idx, 'body', value)
+                      clearTemplateError(templateField, idx, 'body')
+                    }}
+                    placeholder={`Dear [name],\n\nMail content\n\nRegards,`}
+                    className="text-sm [&_.ql-container]:min-h-[140px] [&_.ql-editor]:min-h-[140px] [&_.ql-editor]:text-sm [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-container]:border-0"
+                  />
+                )}
+              </div>
+              {errors[idx]?.body && <p className="text-xs text-red-500">{errors[idx].body}</p>}
+            </div>
+          </div>
+        ))}
+      </>
+    )
   }
 
   const handleProfileAttachmentUpload = async (e) => {
@@ -362,12 +474,22 @@ export default function Profiles() {
         : {}),
     }
     if (profile.templates && Array.isArray(profile.templates)) {
-      return { ...profile, filters, attachments: profile.attachments || [] }
+      return {
+        ...profile,
+        filters,
+        r1Templates: Array.isArray(profile.r1Templates) ? profile.r1Templates : defaultForm.r1Templates,
+        r2Templates: Array.isArray(profile.r2Templates) ? profile.r2Templates : defaultForm.r2Templates,
+        reminderTemplates: Array.isArray(profile.reminderTemplates) ? profile.reminderTemplates : [],
+        attachments: profile.attachments || []
+      }
     }
     return {
       ...profile,
       filters,
       templates: [{ id: 'default', name: 'Default Template', subject: profile.subject || '', body: profile.body || '', weight: 1 }],
+      r1Templates: Array.isArray(profile.r1Templates) ? profile.r1Templates : defaultForm.r1Templates,
+      r2Templates: Array.isArray(profile.r2Templates) ? profile.r2Templates : defaultForm.r2Templates,
+      reminderTemplates: Array.isArray(profile.reminderTemplates) ? profile.reminderTemplates : [],
       attachments: profile.attachments || []
     }
   }
@@ -377,9 +499,11 @@ export default function Profiles() {
     setFilterCount(null)
     setShowDatePicker(false)
     setTestEmail('')
+    setTestMailType('')
     setFilterLimitError('')
-    setTemplateErrors([])
+    setTemplateErrors({})
     setSendingErrors({})
+    setReminderTemplateErrors([])
     if (profile) {
       setSelected(profile)
       setForm(formatProfileForEdit(profile))
@@ -391,6 +515,22 @@ export default function Profiles() {
   }
 
   const handleSave = () => {
+    const reminderErrors = (form.reminderTemplates || []).map(template => {
+      const cleanBody = template.body ? template.body.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/gi, ' ').trim() : ''
+      return {
+        body: cleanBody ? undefined : 'Body is required',
+        weight: template.weight !== '' && template.weight !== undefined && template.weight !== null && !Number.isInteger(Number(template.weight))
+          ? 'Weight must be a whole number'
+          : undefined,
+      }
+    })
+    setReminderTemplateErrors(reminderErrors)
+    const invalidReminderIndex = reminderErrors.findIndex(error => error.body || error.weight)
+    if (invalidReminderIndex !== -1) {
+      setActiveTab('reminder-templates')
+      return toast.error('Please enter a body and a whole-number weight for each reminder template')
+    }
+
     if (form.filters?.date_filter && (
       !form.filters.date_range
       || (form.filters.date_range === 'custom' && (!form.filters.start_date || !form.filters.end_date))
@@ -404,21 +544,23 @@ export default function Profiles() {
       return toast.error('Please select an employee for this profile')
     }
 
-    let hasTemplateError = false;
-    const newTemplateErrors = form.templates.map((t, idx) => {
-      const errs = {};
-      if (!t.name || !t.name.trim()) errs.name = 'Name is required';
-      if (!t.subject || !t.subject.trim()) errs.subject = 'Subject is required';
-      const cleanBody = t.body ? t.body.replace(/<[^>]*>?/gm, '').trim() : '';
-      if (!cleanBody) errs.body = 'Body is required';
-      
-      if (errs.name || errs.subject || errs.body) hasTemplateError = true;
-      return errs;
-    });
+    let firstInvalidTemplateTab = null
+    const newTemplateErrors = {}
+    TEMPLATE_SECTIONS.forEach(({ field, tab }) => {
+      newTemplateErrors[field] = (form[field] || []).map(template => {
+        const errors = {}
+        if (!template.name || !template.name.trim()) errors.name = 'Name is required'
+        if (!template.subject || !template.subject.trim()) errors.subject = 'Subject is required'
+        const cleanBody = template.body ? template.body.replace(/<[^>]*>?/gm, '').trim() : ''
+        if (!cleanBody) errors.body = 'Body is required'
+        if (!firstInvalidTemplateTab && Object.keys(errors).length) firstInvalidTemplateTab = tab
+        return errors
+      })
+    })
 
-    if (hasTemplateError) {
+    if (firstInvalidTemplateTab) {
       setTemplateErrors(newTemplateErrors);
-      setActiveTab('templates');
+      setActiveTab(firstInvalidTemplateTab);
       return toast.error('Please fill in all template fields');
     }
 
@@ -517,7 +659,7 @@ export default function Profiles() {
               </div>
 
               <div className="space-y-1.5 mb-4">
-                <p className="text-xs text-gray-500"><span className="font-medium">Templates:</span> {(p.templates?.length || 1)}</p>
+                <p className="text-xs text-gray-500"><span className="font-medium">D-Templates:</span> {(p.templates?.length || 1)} , <span className="font-medium">R-Templates:</span> {(p.reminderTemplates?.length || 0)}</p>
                 <p className="text-xs text-gray-500"><span className="font-medium">Daily Limit:</span> {p.sendingOptions?.dailyLimit}/day</p>
                 <p className="text-xs text-gray-500"><span className="font-medium">Filter Limit:</span> {p.filterLimit > 0 ? p.filterLimit : 'Unlimited'}</p>
                 <p className="text-xs text-gray-500"><span className="font-medium">Delay:</span> {p.sendingOptions?.delayMin}–{p.sendingOptions?.delayMax}s</p>
@@ -526,10 +668,10 @@ export default function Profiles() {
               </div>
 
               <div className="flex items-center gap-1 pt-3 border-t border-gray-50">
-                <motion.button whileHover={btnHover} style={{ transformPerspective: 300 }} onClick={() => openModal('edit', p)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                <motion.button whileHover={btnHover} style={{ transformPerspective: 300 }} onClick={() => openModal('edit', p)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                   <Pencil className="w-3.5 h-3.5" /> Edit
                 </motion.button>
-                    <motion.button whileHover={btnHover} style={{ transformPerspective: 300 }} onClick={() => toggleMut.mutate({ id: p.id, active: p.isActive })} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors">
+                    <motion.button whileHover={btnHover} style={{ transformPerspective: 300 }} onClick={() => toggleMut.mutate({ id: p.id, active: p.isActive })} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
                       {p.isActive ? <><PowerOff className="w-3.5 h-3.5" /> Deactivate</> : <><Power className="w-3.5 h-3.5" /> Activate</>}
                     </motion.button>
                     <motion.button whileHover={btnHover} style={{ transformPerspective: 300 }} onClick={() => { setDeleteTarget(p); setModal('delete') }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
@@ -546,39 +688,64 @@ export default function Profiles() {
         open={modal === 'create' || modal === 'edit'}
         onClose={() => {
           setModal(null)
+          setTestMailType('')
           setTestTemplateName('')
         }}
         title={modal === 'create' ? 'Create Profile' : 'Edit Profile'}
         size="lg"
+        className="h-[90vh]"
+        bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden"
       >
-        <div className="flex flex-col" style={{ minHeight: '460px' }}>
+        <div className="flex min-h-0 flex-1 flex-col">
 
           {/* ── Tab Bar ── */}
-          <div className="flex border-b border-gray-200 mb-5">
-            {TABS.map(tab => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <motion.button
-                  key={tab.id}
-                  whileHover={tabHover}
-                  style={{ transformPerspective: 400 }}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                    ${isActive
-                      ? 'border-primary-600 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-                    }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                </motion.button>
-              )
-            })}
+          <div className="mb-5 flex min-w-0 shrink-0 items-center gap-1 border-b border-gray-200">
+            <button
+              type="button"
+              aria-label="Scroll tabs left"
+              onClick={() => tabBarRef.current?.scrollBy({ left: -180, behavior: 'smooth' })}
+              className="bg-blue-300 shrink-0 rounded-md p-2 text-black font-bold hover:bg-blue-200 hover:text-gray-800"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div
+              ref={tabBarRef}
+              className="flex min-w-0 flex-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {TABS.map(tab => {
+                const Icon = tab.icon
+                const isActive = activeTab === tab.id
+                return (
+                  <motion.button
+                    key={tab.id}
+                    whileHover={tabHover}
+                    style={{ transformPerspective: 400 }}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex shrink-0 items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                      ${isActive
+                        ? 'border-primary-600 text-primary-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+                      }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                  </motion.button>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              aria-label="Scroll tabs right"
+              onClick={() => tabBarRef.current?.scrollBy({ left: 180, behavior: 'smooth' })}
+              className="bg-blue-300 shrink-0 rounded-md p-2 text-black font-bold hover:bg-blue-200 hover:text-gray-800"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
 
           {/* ── Tab Content ── */}
-          <div className="flex-1 space-y-4">
+          <div className="min-h-0 flex-1 overflow-y-auto space-y-4">
 
             {/* INFO TAB */}
             <motion.div {...pane('info', 'space-y-4')}>
@@ -660,80 +827,100 @@ export default function Profiles() {
               </div>
             </motion.div>
 
-            {/* TEMPLATES TAB */}
-            <motion.div {...pane('templates', 'space-y-4')}>
+            {/* TEMPLATE TABS */}
+            {TEMPLATE_SECTIONS.map(({ field, tab }) => (
+              <motion.div key={tab} {...pane(tab, 'space-y-4')}>
+                {renderTemplateEditor(field)}
+              </motion.div>
+            ))}
+
+            <motion.div {...pane('reminder-templates', 'space-y-4')}>
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">up to 5 templates</p>
-                {form.templates.length < 5 && (
-                  <Button size="sm" variant="secondary" onClick={addTemplate}>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800">Reminder Templates</h3>
+                  {/* <p className="text-xs text-gray-500">Reminder campaigns randomly select a weighted template body; no subject needed.</p> */}
+                </div>
+                {(form.reminderTemplates || []).length < 5 && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setForm(prev => ({
+                      ...prev,
+                      reminderTemplates: [...(prev.reminderTemplates || []), { name: '', body: '', weight: 1 }]
+                    }))}
+                  >
                     <Plus className="w-3 h-3" /> Add Template
                   </Button>
                 )}
               </div>
-              {form.templates.map((t, idx) => (
-                <div key={idx} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+              {(form.reminderTemplates || []).length === 0 && (
+                <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-500">
+                  No reminder templates configured. Add at least one to use Reminder campaigns.
+                </p>
+              )}
+              {(form.reminderTemplates || []).map((template, idx) => (
+                <div key={idx} className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
                   <div className="flex items-center justify-between">
-                    <div className='flex flex-col'>
-                      <span className="text-sm font-semibold text-gray-800">Template {idx + 1} </span>
-                      <span className="text-xs font-light text-gray-500">Use [name] for the client’s name</span>
-                    </div>
-                    
-                    {form.templates.length > 1 && (
-                      <button
-                        onClick={() => removeTemplate(idx)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
-                      >
-                        <X className="w-3 h-3" /> Remove
-                      </button>
-                    )}
+                    <span className="text-sm font-semibold text-gray-800">Reminder Template {idx + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm(prev => ({
+                          ...prev,
+                          reminderTemplates: prev.reminderTemplates.filter((_, i) => i !== idx)
+                        }))
+                        setReminderTemplateErrors(prev => prev.filter((_, i) => i !== idx))
+                      }}
+                      className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-3 w-3" /> Remove
+                    </button>
                   </div>
                   <Input
-                    placeholder="Template name"
-                    value={t.name}
-                    onChange={(e) => {
-                      updateTemplate(idx, 'name', e.target.value);
-                      setTemplateErrors(prev => {
-                        const newErrs = [...prev];
-                        if (newErrs[idx]) newErrs[idx] = { ...newErrs[idx], name: undefined };
-                        return newErrs;
-                      });
-                    }}
-                    error={templateErrors[idx]?.name}
+                    label="Name (optional)"
+                    value={template.name || ''}
+                    onChange={e => setForm(prev => ({
+                      ...prev,
+                      reminderTemplates: prev.reminderTemplates.map((item, i) => i === idx ? { ...item, name: e.target.value } : item)
+                    }))}
+                    placeholder="e.g. Friendly follow-up"
                   />
-                  <Input
-                    placeholder="Subject line"
-                    value={t.subject}
-                    onChange={(e) => {
-                      updateTemplate(idx, 'subject', e.target.value);
-                      setTemplateErrors(prev => {
-                        const newErrs = [...prev];
-                        if (newErrs[idx]) newErrs[idx] = { ...newErrs[idx], subject: undefined };
-                        return newErrs;
-                      });
-                    }}
-                    error={templateErrors[idx]?.subject}
-                  />
+                  {/* <Input
+                    label="Weight"
+                    type="number"
+                    step="1"
+                    min="1"
+                    max="3"
+                    value={template.weight ?? 1}
+                    onChange={e => setForm(prev => ({
+                      ...prev,
+                      reminderTemplates: prev.reminderTemplates.map((item, i) => i === idx
+                        ? { ...item, weight: e.target.value === '' ? '' : Number(e.target.value) }
+                        : item)
+                    }))}
+                    error={reminderTemplateErrors[idx]?.weight}
+                  /> */}
                   <div className="space-y-1.5">
-                    <div className={`bg-white rounded-lg border overflow-hidden ${templateErrors[idx]?.body ? 'border-red-400 focus-within:ring-2 focus-within:ring-red-100' : 'border-gray-200'}`}>
+                    <label className="block text-sm font-medium text-gray-700">Body</label>
+                    <div className={`overflow-hidden rounded-lg border bg-white ${reminderTemplateErrors[idx]?.body ? 'border-red-400' : 'border-gray-200'}`}>
                       {!!modal && (
                         <ReactQuill
                           theme="snow"
                           modules={quillModules}
-                          value={t.body}
-                          onChange={(value) => {
-                            updateTemplate(idx, 'body', value);
-                            setTemplateErrors(prev => {
-                              const newErrs = [...prev];
-                              if (newErrs[idx]) newErrs[idx] = { ...newErrs[idx], body: undefined };
-                              return newErrs;
-                            });
+                          value={template.body || ''}
+                          onChange={value => {
+                            setForm(prev => ({
+                              ...prev,
+                              reminderTemplates: prev.reminderTemplates.map((item, i) => i === idx ? { ...item, body: value } : item)
+                            }))
+                            setReminderTemplateErrors(prev => prev.map((error, i) => i === idx ? { ...error, body: undefined } : error))
                           }}
                           placeholder={`Dear [name],\n\nMail content\n\nRegards,`}
-                          className="text-sm [&_.ql-container]:min-h-[140px] [&_.ql-editor]:min-h-[140px] [&_.ql-editor]:text-sm [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-container]:border-0"
+                          className="text-sm [&_.ql-container]:min-h-[140px] [&_.ql-editor]:min-h-[140px] [&_.ql-editor]:text-sm [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b"
                         />
                       )}
                     </div>
-                    {templateErrors[idx]?.body && <p className="text-xs text-red-500">{templateErrors[idx].body}</p>}
+                    {reminderTemplateErrors[idx]?.body && <p className="text-xs text-red-500">{reminderTemplateErrors[idx].body}</p>}
                   </div>
                 </div>
               ))}
@@ -980,23 +1167,46 @@ export default function Profiles() {
                     placeholder="e.g. test@example.com"
                   />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Template (Optional)</label>
+                    <label htmlFor="test-mail-type" className="block text-sm font-medium text-gray-700 mb-1">Mail Type *</label>
                     <select
+                      id="test-mail-type"
+                      required
                       className="w-full h-[42px] px-3 border border-gray-300 rounded-lg shadow-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white"
-                      value={testTemplateName}
-                      onChange={(e) => setTestTemplateName(e.target.value)}
+                      value={testMailType}
+                      onChange={(e) => {
+                        setTestMailType(e.target.value)
+                        setTestTemplateName('')
+                      }}
                     >
-                      <option value="">Select Template...</option>
-                      {selected?.templates?.map((t, idx) => (
-                        <option key={idx} value={idx.toString()}>{idx + 1}</option>
-                      ))}
+                      <option value="">Select Mail Type...</option>
+                      <option value="draft">Draft</option>
+                      <option value="reminder">Reminder</option>
                     </select>
                   </div>
+                  {testMailType && (
+                    <div>
+                      <label htmlFor="test-template" className="block text-sm font-medium text-gray-700 mb-1">
+                        {testMailType === 'draft' ? 'D-Templates' : 'R-Templates'} (Optional)
+                      </label>
+                      <select
+                        id="test-template"
+                        className="w-full h-[42px] px-3 border border-gray-300 rounded-lg shadow-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white"
+                        value={testTemplateName}
+                        onChange={(e) => setTestTemplateName(e.target.value)}
+                      >
+                        <option value="">Select Template...</option>
+                        {(testMailType === 'draft' ? selected?.templates : selected?.reminderTemplates)?.map((_, idx) => (
+                          <option key={idx} value={idx.toString()}>{idx + 1}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <Button 
                       onClick={() => {
                         if (!testEmail) return toast.error('Please enter an email address')
-                        const payload = { toEmail: testEmail }
+                        if (!testMailType) return toast.error('Please select a mail type')
+                        const payload = { toEmail: testEmail, mailType: testMailType }
                         if (testTemplateName) {
                           payload.templateId = testTemplateName
                         }
@@ -1014,8 +1224,36 @@ export default function Profiles() {
           </div>
 
           {/* ── Footer ── */}
-          <div className="flex justify-between items-center pt-4 mt-4 border-t border-gray-200">
-            <div className="flex gap-1.5">
+          <div className="mt-4 flex shrink-0 items-center justify-between border-t border-gray-200 pt-4">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                size="md"
+                className="w-10 px-0 hover:bg-blue-200"
+                aria-label="Previous tab"
+                title="Previous tab"
+                onClick={() => {
+                  const currentIndex = TABS.findIndex(tab => tab.id === activeTab)
+                  if (currentIndex > 0) setActiveTab(TABS[currentIndex - 1].id)
+                }}
+                disabled={activeTab === TABS[0].id}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+               <Button
+                variant="secondary"
+                className="w-10 px-0 hover:bg-blue-200"
+                aria-label="Next tab"
+                title="Next tab"
+                onClick={() => {
+                  const currentIndex = TABS.findIndex(tab => tab.id === activeTab)
+                  if (currentIndex < TABS.length - 1) setActiveTab(TABS[currentIndex + 1].id)
+                }}
+                disabled={activeTab === TABS[TABS.length - 1].id}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              {/* <div className="flex gap-1.5">
               {TABS.map(tab => (
                 <button
                   key={tab.id}
@@ -1025,23 +1263,14 @@ export default function Profiles() {
                   title={tab.label}
                 />
               ))}
+              </div> */}
             </div>
             <div className="flex gap-2">
+             
               <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
-              {activeTab === 'test' ? (
-                <Button onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={isPartialAdmin && !isOwnData}>
-                  {modal === 'create' ? 'Create Profile' : 'Save Changes'}
-                </Button>
-              ) : (
-                <Button onClick={() => {
-                  const currentIndex = TABS.findIndex(t => t.id === activeTab)
-                  if (currentIndex < TABS.length - 1) {
-                    setActiveTab(TABS[currentIndex + 1].id)
-                  }
-                }}>
-                  Next
-                </Button>
-              )}
+              <Button onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={isPartialAdmin && !isOwnData}>
+                Confirm
+              </Button>
             </div>
           </div>
         </div>
