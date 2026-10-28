@@ -592,7 +592,7 @@ export default function EmailMaster() {
     { key: 'sno', label: 'S.No', sortable: false, render: (_, __, i) => i + 1 + (page - 1) * pageSize },
     { key: 'fullName', label: 'Full Name', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search) : '—'}</div> },
     { key: 'email', label: 'Email', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar"><span className="font-medium text-blue-600">{v ? highlightMatch(v, search) : ''}</span></div> },
-    { key: 'university', label: 'University', render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search) : '—'}</div> },
+    { key: 'university', label: 'University',  minWidth: '300px',render: v => <div className="max-h-20 overflow-y-auto pr-1 custom-scrollbar">{v ? highlightMatch(v, search) : '—'}</div> },
     {
       key: 'website', label: 'Website',
       render: v => {

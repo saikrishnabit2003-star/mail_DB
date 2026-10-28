@@ -442,7 +442,7 @@ export default function ProfileEmails() {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setConvertModal(false)}>Cancel</Button>
             <Button onClick={() => convertMut.mutate()} loading={convertMut.isPending}>
-              <ArrowRightLeft className="w-4 h-4" /> Move sent drafts
+              <ArrowRightLeft className="w-4 h-4" /> Move
             </Button>
           </div>
         </div>

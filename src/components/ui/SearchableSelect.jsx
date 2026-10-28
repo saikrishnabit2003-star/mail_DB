@@ -139,7 +139,7 @@ export default function SearchableSelect({
           <div
             ref={dropdownRef}
             className={clsx(
-              'absolute left-0 min-w-full w-max z-50 flex max-h-[min(240px,60vh)] flex-col bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-w-[90vw]',
+              'absolute left-0 z-50 flex w-full min-w-0 max-w-full max-h-[min(240px,60vh)] flex-col bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden',
               openUp ? 'bottom-full mb-1' : 'top-full mt-1'
             )}
           >
@@ -177,7 +177,7 @@ export default function SearchableSelect({
                         : 'text-gray-700 hover:bg-gray-50'
                     )}
                   >
-                    <span className="whitespace-nowrap pr-4">{o.label}</span>
+                    <span className="min-w-0 truncate pr-4">{o.label}</span>
                     {o.value === value && <Check className="w-3.5 h-3.5 flex-shrink-0 text-primary-600" />}
                   </li>
                 ))

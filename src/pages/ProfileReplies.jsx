@@ -210,9 +210,19 @@ export default function ProfileReplies() {
     { key: 'sno', label: 'S.No', render: (_, __, i) => i + 1 + (page - 1) * pageSize },
     { key: 'fullName', label: 'Full Name', render: v => v || '—' },
     { key: 'email', label: 'Email', render: v => <span className="font-medium text-blue-600">{v}</span> },
-    { key: 'phone_no', label: 'Phone', render: v => v || '—' },
-    { key: 'university', label: 'University', render: v => v || '—' },
-    { key: 'domain', label: 'Domain', render: v => v || '—' },
+    { key: 'phone_no', label: 'Phone',  render: v => v || '—' },
+    {
+      key: 'university',
+      label: 'University',
+      minWidth: '200px',
+      render: v => <div className="min-h-[40px] max-h-20 overflow-y-auto pr-1">{v || '—'}</div>
+    },
+    {
+      key: 'domain',
+      label: 'Domain',
+      minWidth: '200px',
+      render: v => <div className="min-h-[40px] max-h-20 overflow-y-auto pr-1">{v || '—'}</div>
+    },
     { key: 'replyReason', label: 'Reason', render: v => <span className="capitalize font-medium text-indigo-600">{v || '—'}</span> },
     { 
       key: 'replyCustomReason', 
@@ -289,11 +299,11 @@ export default function ProfileReplies() {
           
           <div className="min-w-0">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-700">Custom Reason (Optional)</label>
+              <label className="block text-sm font-medium text-gray-700">Custom Reason</label>
               <textarea
                 rows={1}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 text-sm transition-colors outline-none resize-y max-h-24 min-h-[42px]"
-                placeholder="e.g. Out of office"
+                placeholder="e.g Request more information "
                 value={formData.customReason}
                 onChange={(e) => setFormData({ ...formData, customReason: e.target.value })}
               />

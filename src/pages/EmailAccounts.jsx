@@ -385,13 +385,13 @@ export default function EmailAccounts() {
               options={availableProfiles.map(p => ({ label: `${p.profileName} ${p.gmailAccount ? `— ${p.gmailAccount}` : ''}`, value: p.id }))}
             />
           )}
-          <Input label="Display Name" value={form.displayName || ''} onChange={f('displayName')} placeholder="Marketing Team" />
+          <Input label="Display Name" value={form.displayName || ''} onChange={f('displayName')} placeholder="Enter a name to display in the email" />
           <Input 
             label="Email Address" 
             type="email" 
             value={form.email || ''} 
             onChange={f('email')}
-            placeholder="you@gmail.com" 
+            placeholder="example@gmail.com" 
             autoComplete="new-password"
           />
           
@@ -402,7 +402,7 @@ export default function EmailAccounts() {
                   type="password"
                   value={form.appPassword || ''}
                   onChange={f('appPassword')}
-                placeholder={modal === 'create' ? 'Gmail app password' : 'Enter new password if changing'}
+                placeholder={modal === 'create' ? 'Enter app password' : 'Enter new password if changing'}
                 autoComplete="new-password"
               />
               {form.accountType === 'smtp' ? (

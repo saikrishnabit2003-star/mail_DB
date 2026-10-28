@@ -580,11 +580,11 @@ export default function Campaigns() {
             onChange={val => setForm(p => ({ ...p, mailType: val }))}
             options={[{ label: 'Draft', value: 'draft' }, { label: 'Reminder', value: 'reminder' }]}
           />
-          {form.mailType === 'reminder' && (
+          {/* {form.mailType === 'reminder' && (
             <p className="text-xs text-slate-500">
               Reminder emails use the profile’s weighted reminder templates and the recipient’s original email subject and thread.
             </p>
-          )}
+          )} */}
           <Input label="Daily Limit (optional)" type="number" value={form.dailyLimit} onChange={f('dailyLimit')} placeholder="Leave empty to use profile default" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
@@ -646,11 +646,11 @@ export default function Campaigns() {
             onChange={val => setScheduleForm(p => ({ ...p, mailType: val }))}
             options={[{ label: 'Draft', value: 'draft' }, { label: 'Reminder', value: 'reminder' }]}
           />
-          {scheduleForm.mailType === 'reminder' && (
+          {/* {scheduleForm.mailType === 'reminder' && (
             <p className="text-xs text-slate-500">
               Reminder emails use the profile’s weighted reminder templates and the recipient’s original email subject and thread.
             </p>
-          )}
+          )} */}
           
           <div className="grid grid-cols-2 gap-3">
             {scheduleForm.recurrenceType === 'once' && (
