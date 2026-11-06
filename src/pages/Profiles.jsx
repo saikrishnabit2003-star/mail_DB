@@ -65,7 +65,7 @@ const defaultForm = {
   attachments: [],
   filters: {
     country: [], state: [], industry: [], domain: [], University: [], type: [], mailSource: [],
-    date_filter: false
+    date_filter: false,oldestFirst:false
   },
   filterLimit: 0,
   sendingOptions: { dailyLimit: 100, delayMin: Number(30), delayMax: Number(90) },
@@ -77,6 +77,19 @@ const formatReminderTemplates = (templates = []) => templates.map(({ name, body,
   body,
   ...(weight === '' || weight === null || weight === undefined ? {} : { weight: Number(weight) }),
 }))
+
+const getProfileAgeInDays = (profileAge) => {
+  if (typeof profileAge !== 'string') return null
+
+  const unitsInDays = { year: 365, month: 30, week: 7, day: 1 }
+  const matches = [...profileAge.matchAll(/(\d+(?:\.\d+)?)\s*(years?|months?|weeks?|days?)/gi)]
+  if (!matches.length) return null
+
+  return matches.reduce((total, [, amount, unit]) => {
+    const normalizedUnit = unit.toLowerCase().replace(/s$/, '')
+    return total + Number(amount) * unitsInDays[normalizedUnit]
+  }, 0)
+}
 
 const quillModules = {
   toolbar: [
@@ -110,6 +123,8 @@ export default function Profiles() {
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState(defaultForm)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null)
+  const [profileAgeSort, setProfileAgeSort] = useState('all')
+  const [hideInactiveProfiles, setHideInactiveProfiles] = useState(false)
   // Own data = no employee filter selected (admin viewing their own profiles)
   const isOwnData = !selectedEmployeeId
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -153,6 +168,20 @@ export default function Profiles() {
     queryFn: () => profilesService.list(selectedEmployeeId || undefined),
   })
   const profiles = data?.data?.data || []
+  const filteredProfiles = hideInactiveProfiles
+    ? profiles.filter(profile => profile.isActive)
+    : profiles
+  const displayedProfiles = profileAgeSort === 'all'
+    ? filteredProfiles
+    : filteredProfiles
+      .map((profile, index) => ({ profile, index, age: getProfileAgeInDays(profile.profileAge) }))
+      .sort((a, b) => {
+        if (a.age === null) return b.age === null ? a.index - b.index : 1
+        if (b.age === null) return -1
+        const ageOrder = profileAgeSort === 'old' ? b.age - a.age : a.age - b.age
+        return ageOrder || a.index - b.index
+      })
+      .map(({ profile }) => profile)
   const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
 
   // Determine which employee's email accounts to show in the gmailAccount dropdown:
@@ -606,7 +635,7 @@ export default function Profiles() {
     <div className="space-y-5 rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 p-5 shadow-inner">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">
-          <p className="text-sm text-gray-500">{profiles.length} profiles</p>
+          <p className="text-sm text-gray-500">{displayedProfiles.length} profiles</p>
           {isAdmin(user) && (
             <div className="min-w-72">
               <SearchableSelect
@@ -620,6 +649,27 @@ export default function Profiles() {
               />
             </div>
           )}
+          <div className="min-w-60">
+            <SearchableSelect
+              value={profileAgeSort}
+              onChange={setProfileAgeSort}
+              placeholder="Select profile filters"
+              options={[
+                // { label: 'All Profiles', value: '' },
+                { label: 'Old profiles', value: 'old' },
+                { label: 'New profiles', value: 'new' },
+              ]}
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hideInactiveProfiles}
+              onChange={event => setHideInactiveProfiles(event.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            Hide Inactive Profiles
+          </label>
           {isAdmin(user) && !employees.length && selectedEmployeeId && (
             <p className="text-xs text-gray-500">Loading employees...</p>
           )}
@@ -634,8 +684,12 @@ export default function Profiles() {
       {/* Profile cards */}
       {isLoading ? (
         <div className="flex items-center justify-center h-40"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>
-      ) : !profiles.length ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">No profiles yet. Create one to get started.</div>
+      ) : !displayedProfiles.length ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">
+          {hideInactiveProfiles && profiles.length
+            ? 'No active profiles match the selected filters.'
+            : 'No profiles yet. Create one to get started.'}
+        </div>
       ) : (
         <motion.div
           variants={gridVariants}
@@ -643,7 +697,7 @@ export default function Profiles() {
           animate="show"
           className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
         >
-          {profiles.map(p => (
+          {displayedProfiles.map(p => (
             <motion.div
               key={p.id}
               variants={cardVariants}
@@ -660,11 +714,12 @@ export default function Profiles() {
 
               <div className="space-y-1.5 mb-4">
                 <p className="text-xs text-gray-500"><span className="font-medium">D-Templates:</span> {(p.templates?.length || 1)} , <span className="font-medium">R-Templates:</span> {(p.reminderTemplates?.length || 0)}</p>
-                <p className="text-xs text-gray-500"><span className="font-medium">Daily Limit:</span> {p.sendingOptions?.dailyLimit}/day</p>
-                <p className="text-xs text-gray-500"><span className="font-medium">Filter Limit:</span> {p.filterLimit > 0 ? p.filterLimit : 'Unlimited'}</p>
+                <p className="text-xs text-gray-500"><span className="font-medium">Daily Limit:</span> {p.sendingOptions?.dailyLimit}/day , <span className="font-medium">Filter Limit:</span> {p.filterLimit > 0 ? p.filterLimit : 'Unlimited'}</p>
+                {/* <p className="text-xs text-gray-500"><span className="font-medium">Filter Limit:</span> {p.filterLimit > 0 ? p.filterLimit : 'Unlimited'}</p> */}
                 <p className="text-xs text-gray-500"><span className="font-medium">Delay:</span> {p.sendingOptions?.delayMin}–{p.sendingOptions?.delayMax}s</p>
                 <p className="text-xs text-gray-500"><span className="font-medium">Profile Handler:</span> {(p.employeeName || "---")}</p>
                 {p.assignedAdmin != ""? (<p className="text-xs text-gray-500"><span className="font-medium">Profile Admin:</span> {(p.assignedAdmin || "---")}</p>):(<p className="text-xs text-gray-500"><span className="font-medium">Profile Admin:</span> {"-"}</p>)}
+                <p className="text-xs text-gray-500"><span className="font-medium">Profile Age:</span> {(p.profileAge || "---")}</p>
               </div>
 
               <div className="flex items-center gap-1 pt-3 border-t border-gray-50">
@@ -991,7 +1046,25 @@ export default function Profiles() {
                   options={(dropdownOptions.university || []).map(c => ({ label: c, value: c }))}
                   placeholder="Select universities..."
                 />
-                <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                {/* <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!form.filters?.date_filter}
+                    onChange={e => {
+                      const enabled = e.target.checked
+                      setForm(f => {
+                        const { date_range, start_date, end_date, ...filters } = f.filters
+                        return { ...f, filters: { ...filters, date_filter: enabled } }
+                      })
+                      if (!enabled) setShowDatePicker(false)
+                    }}
+                    className="rounded border-gray-300 text-primary-600"
+                  />
+                  <span>Filter by date range</span>
+                </label> */}
+
+                <div className="col-span-2 flex items-center gap-10 text-sm text-gray-700 cursor-pointer">
+                  <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={!!form.filters?.date_filter}
@@ -1007,6 +1080,25 @@ export default function Profiles() {
                   />
                   <span>Filter by date range</span>
                 </label>
+                <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!form.filters?.oldestFirst}
+                    // onChange={e => {
+                    //   const enabled = e.target.checked
+                    //   setForm(f => {
+                    //     const { date_range, start_date, end_date, ...filters } = f.filters
+                    //     return { ...f, filters: { ...filters, date_filter: enabled } }
+                    //   })
+                    //   if (!enabled) setShowDatePicker(false)
+                    // }}
+                    onChange={e => setForm(f => ({ ...f, filters: { ...f.filters, oldestFirst: e.target.checked } }))}
+                    className="rounded border-gray-300 text-primary-600"
+                  />
+                  <span>Non-used mail's</span>
+                </label>
+                </div>
+
                 {form.filters?.date_filter && (
                   <>
                     <SearchableSelect

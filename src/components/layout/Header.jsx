@@ -1,12 +1,89 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { Settings, Bell, LogOut, ChevronDown, Menu, XCircle, CheckCircle2 } from 'lucide-react'
+import { Settings, Bell, LogOut, ChevronDown, Menu, XCircle, CheckCircle2, Volume2, VolumeX } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsService } from '../../services/notifications.service'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { format } from 'date-fns'
+import { playNotificationSound } from '../../lib/notificationSound'
+
+const MARQUEE_PASSES = 3      // the message runs fully across the bar this many times, then the bar closes
+const MARQUEE_SPEED = 70      // pixels per second
+const MARQUEE_OPEN = [0.22, 1, 0.36, 1]
+const CLOSED_CLIP = 'inset(0 50% 0 50% round 9999px)'
+const OPEN_CLIP = 'inset(0 0% 0 0% round 9999px)'
+
+// Scrolling text: enters from the right edge, travels fully across and leaves on the left.
+// After MARQUEE_PASSES full passes it calls onDone so the bar can close smoothly.
+function MarqueeText({ message, reduce, onDone }) {
+  const viewRef = useRef(null)
+  const textRef = useRef(null)
+  const [dims, setDims] = useState(null)
+  // keep the latest onDone without restarting timers when the parent re-renders
+  const doneRef = useRef(onDone)
+  doneRef.current = onDone
+
+  // measure the visible width and the text width
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (viewRef.current && textRef.current) {
+        setDims({ view: viewRef.current.clientWidth, text: textRef.current.scrollWidth })
+      }
+    }
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    if (ro && viewRef.current) ro.observe(viewRef.current)
+    return () => ro && ro.disconnect()
+  }, [message])
+
+  // reduced motion: show the message still for a few seconds, then close
+  useEffect(() => {
+    if (!reduce) return
+    const t = setTimeout(() => doneRef.current(), 6000)
+    return () => clearTimeout(t)
+  }, [reduce])
+
+  if (reduce) {
+    return (
+      <div ref={viewRef} className="relative flex-1 min-w-0 overflow-hidden">
+        <span ref={textRef} className="block truncate text-xs sm:text-sm font-medium">{message}</span>
+      </div>
+    )
+  }
+
+  const travel = dims ? dims.view + dims.text : 0
+  const duration = Math.max(6, travel / MARQUEE_SPEED)
+
+  return (
+    <div
+      ref={viewRef}
+      className="relative flex-1 min-w-0 overflow-hidden"
+      // soft fade at both edges so the text eases in and out
+      style={{
+        WebkitMaskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+        maskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+      }}
+    >
+      <motion.div
+        ref={textRef}
+        className="inline-block whitespace-nowrap text-xs sm:text-sm font-medium"
+        initial={false}
+        animate={dims ? { x: [dims.view, -dims.text] } : { x: 0 }}
+        transition={
+          dims
+            ? { duration, ease: 'linear', repeat: MARQUEE_PASSES - 1, repeatType: 'loop', delay: 0.5 }
+            : { duration: 0 }
+        }
+        onAnimationComplete={() => { if (dims) doneRef.current() }}
+        style={{ x: dims ? dims.view : 0 }}
+      >
+        {message}
+      </motion.div>
+    </div>
+  )
+}
 
 export default function Header({ title, toggleSidebar }) {
   const { user, logout } = useAuth()
@@ -17,6 +94,10 @@ export default function Header({ title, toggleSidebar }) {
   const [notifOpen, setNotifOpen] = useState(false)
   const [prevNotifIds, setPrevNotifIds] = useState(null)
   const [centerNotif, setCenterNotif] = useState(null)
+  const [isMarqueeVisible, setIsMarqueeVisible] = useState(false)
+  const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(
+    () => localStorage.getItem('notification_sound_enabled') !== 'false'
+  )
   
   const notifRef = useRef(null)
   const dropRef = useRef(null)
@@ -73,8 +154,27 @@ export default function Header({ title, toggleSidebar }) {
     refetchInterval: 30000,
   })
 
+  const { data: marqueeData, dataUpdatedAt: marqueeUpdatedAt } = useQuery({
+    queryKey: ['campaigns-overview'],
+    queryFn: () => notificationsService.marqueelist(),
+    refetchInterval: 300000,
+  })
+
   const notifs = notifData?.data?.data || []
   const unread = notifs.filter(n => !n.isRead).length || 0
+  const marqueeMessage = marqueeData?.data?.data.campaigns
+
+  useEffect(() => {
+    if (!marqueeMessage || !marqueeUpdatedAt) {
+      setIsMarqueeVisible(false)
+      return
+    }
+
+    setIsMarqueeVisible(true)
+    // the bar closes itself after its 3rd full pass; this is only a safety net
+    const timer = setTimeout(() => setIsMarqueeVisible(false), 180000)
+    return () => clearTimeout(timer)
+  }, [marqueeMessage, marqueeUpdatedAt])
 
   useEffect(() => {
     // Only run the logic if we actually have data loaded
@@ -82,6 +182,12 @@ export default function Header({ title, toggleSidebar }) {
       if (prevNotifIds !== null) {
         const newNotifs = notifs.filter(n => !prevNotifIds.has(n.id) && !n.isRead)
         if (newNotifs.length > 0) {
+          if (notificationSoundEnabled) {
+            playNotificationSound().catch(error => {
+              console.warn('Unable to play notification sound.', error)
+            })
+          }
+
           // Only show the latest 1 notification
           const latest = newNotifs[0]
           
@@ -116,7 +222,15 @@ export default function Header({ title, toggleSidebar }) {
       }
       setPrevNotifIds(new Set(notifs.map(n => n.id)))
     }
-  }, [notifData])
+  }, [notifData, notificationSoundEnabled])
+
+  const toggleNotificationSound = () => {
+    setNotificationSoundEnabled(enabled => {
+      const nextEnabled = !enabled
+      localStorage.setItem('notification_sound_enabled', String(nextEnabled))
+      return nextEnabled
+    })
+  }
 
   const readAllMut = useMutation({
     mutationFn: () => notificationsService.readAll(),
@@ -146,7 +260,7 @@ export default function Header({ title, toggleSidebar }) {
       <motion.header
         className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0 sticky top-0 z-30"
       >
-        <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+        <div className="flex items-center gap-2 sm:gap-3 overflow-hidden min-w-0">
           <motion.button 
             onClick={toggleSidebar}
             whileHover={iconHover}
@@ -171,7 +285,29 @@ export default function Header({ title, toggleSidebar }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Marquee: opens smoothly, shows the message 3 full times, then closes smoothly */}
+        <AnimatePresence initial={false}>
+          {marqueeMessage && isMarqueeVisible && (
+            <motion.div
+              key={`${marqueeMessage}-${marqueeUpdatedAt}`}
+              initial={reduce ? false : { opacity: 0, clipPath: CLOSED_CLIP }}
+              animate={{ opacity: 1, clipPath: OPEN_CLIP }}
+              exit={reduce ? undefined : { opacity: 0, clipPath: CLOSED_CLIP }}
+              transition={{ duration: 0.5, ease: MARQUEE_OPEN }}
+              className="hidden sm:flex flex-1 min-w-0 mx-3 lg:mx-6 overflow-hidden items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-800"
+              aria-label={`Campaign update: ${marqueeMessage}`}
+              role="status"
+            >
+              <MarqueeText
+                message={marqueeMessage}
+                reduce={reduce}
+                onDone={() => setIsMarqueeVisible(false)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex items-center gap-3 shrink-0">
           {user?.role === 'super_admin' && (
             <motion.button
               onClick={() => navigate('/settings')}
@@ -184,6 +320,20 @@ export default function Header({ title, toggleSidebar }) {
               <Settings className="w-5 h-5" />
             </motion.button>
           )}
+
+          <motion.button
+            type="button"
+            onClick={toggleNotificationSound}
+            whileHover={iconHover}
+            whileTap={iconTap}
+            style={iconStyle}
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors focus:outline-none"
+            title={notificationSoundEnabled ? 'Mute notification sound' : 'Enable notification sound'}
+            aria-label={notificationSoundEnabled ? 'Mute notification sound' : 'Enable notification sound'}
+            aria-pressed={notificationSoundEnabled}
+          >
+            {notificationSoundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          </motion.button>
 
           {/* Notifications Dropdown */}
           <div className="relative" ref={notifRef}>

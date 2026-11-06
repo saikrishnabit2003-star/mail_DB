@@ -4,4 +4,5 @@ export const notificationsService = {
   list: () => api.get('/notifications'),
   readAll: () => api.patch('/notifications/read-all'),
   readOne: (id) => api.patch(`/notifications/${id}/read`),
+  marqueelist: () => api.get('/campaigns/overview'),
 }

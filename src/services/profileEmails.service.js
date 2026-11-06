@@ -36,6 +36,11 @@ export const profileEmailsService = {
     return api.post(`/profile-emails/${profileId}/retry-failed`, {}, { params })
   },
 
+  retrySentReminders: (profileId, employeeId = null) => {
+    const params = employeeId ? { employeeId } : {}
+    return api.post(`/profile-emails/${profileId}/retry-sent-reminders`, {}, { params })
+  },
+
   clear: (profileId, employeeId = null) => {
     const params = employeeId ? { employeeId } : {}
     return api.delete(`/profile-emails/${profileId}/clear`, { params })

@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dashboardService } from '../../services/dashboard.service'
 import { useAuth } from '../../context/AuthContext'
-import {
-  Users, Database, Send, Activity, TrendingUp,
-  UserCheck, Mail, Play, ArrowUpRight, ArrowDownRight,
-  Clock, AlertCircle, Zap, Copy, MailCheck, Cpu, Users2, Cog, CheckCircle2
-} from 'lucide-react'
+// import {
+//   Users, Database, Send, Activity, TrendingUp,
+//   UserCheck, Mail, Play, ArrowUpRight, ArrowDownRight,
+//   Clock, AlertCircle, Zap, Copy, MailCheck, Cpu, Users2, Cog, CheckCircle2
+// } from 'lucide-react'
+import { Database, Send, Activity, Play, UserCheck,Users2,CheckCircle, XCircle,FileText,ChartNoAxesCombined,SendHorizontal,Inbox,ChartColumn, Clock, Percent, Users, TrendingUp, Zap, Mail, Cog, CheckCircle2 } from 'lucide-react'
+
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend
@@ -130,7 +132,7 @@ const BannerPipeline = () => {
                 </motion.div>
               </div>
               <p className="text-xs font-semibold text-slate-800">{label}</p>
-                          </motion.div>
+            </motion.div>
           </div>
         ))}
       </motion.div>
@@ -272,7 +274,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Light panel behind the metric cards */}
-      <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 p-5 space-y-8 shadow-inner">
+      <div className="max-h-[calc(100vh-16rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 p-6 space-y-8 shadow-inner">
         {/* Admin-specific upload cards */}
         {(isAdmin || isSuperAdmin) && (
           <motion.div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-5`} variants={itemVariants}>
@@ -300,12 +302,23 @@ export default function AdminDashboard() {
         {/* Core Metrics */}
         <motion.div variants={itemVariants}>
           <h2 className="text-lg font-bold mb-2 text-slate-500 uppercase tracking-wider text-xs">Core Metrics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <EnhancedStatCard label="Total Uploads" value={d?.totalUploads || 0} icon={Database} color="cyan" subtitle="CSV/Excel files" onDoubleClick={() => { nav("/email-master") }} />
             <EnhancedStatCard label="Total Profiles" value={d?.totalProfiles || 0} icon={Mail} color="green" subtitle="Overall Profile Counts" onDoubleClick={() => { nav("/profiles") }}/>
             <EnhancedStatCard label="Active Profiles" value={d?.activeProfiles || 0} icon={UserCheck} color="purple" subtitle="Currently Active Profiles" />
-            <EnhancedStatCard label="Overall Sent" value={d?.overallSent || 0} icon={Send} color="green" subtitle="Total Sended Counts" />
-            <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} icon={Send} color="cyan" subtitle="Mon - Sun" />
+            <EnhancedStatCard label="Overall Sent" value={d?.overallSent || 0} icon={Send} color="cyan" subtitle="Total Sended Counts" />
+            {/* <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} icon={Send} color="cyan" subtitle="Mon - Sun" /> */}
+          </div>
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <h2 className="text-lg font-bold mb-2 text-slate-500 uppercase tracking-wider text-xs">Performance</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <EnhancedStatCard label="Last Week Sent" value={d?.lastWeekSent || 0} icon={SendHorizontal} color="purple" subtitle="Last Week Performance" />
+            <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} icon={Inbox} color="cyan" subtitle="This Week Performance (Mon - Sun)"/>
+            <EnhancedStatCard label="Last Month Sent" value={d?.lastMonthSent || 0} icon={ChartNoAxesCombined} color="blue" subtitle="Last Month Performance" />
+            <EnhancedStatCard label="Current Month Sent" value={d?.currentMonthSent || 0} icon={ChartColumn} color="green" subtitle="This Month Performance (26th – 25th)" />
+            {/* <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} icon={Send} color="cyan" subtitle="Mon - Sun" /> */}
           </div>
         </motion.div>
       </div>

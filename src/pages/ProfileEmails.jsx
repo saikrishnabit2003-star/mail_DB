@@ -75,6 +75,7 @@ export default function ProfileEmails() {
   const [genModal, setGenModal] = useState(false)
   const [genLimit, setGenLimit] = useState(null)
   const [convertModal, setConvertModal] = useState(false)
+  const [retrySentRemindersModal, setRetrySentRemindersModal] = useState(false)
   const [deleteId, setDeleteId] = useState(null)
   const [clearModal, setClearModal] = useState(false)
   const [search, setSearch] = useState('')
@@ -157,6 +158,15 @@ export default function ProfileEmails() {
     mutationFn: () => profileEmailsService.retryFailed(selectedProfile, selectedEmployeeId),
     onSuccess: () => { refreshProfileEmails(); toast.success('Retrying failed emails across Draft and Reminder rows') },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to retry'),
+  })
+  const retrySentRemindersMut = useMutation({
+    mutationFn: () => profileEmailsService.retrySentReminders(selectedProfile, selectedEmployeeId),
+    onSuccess: (res) => {
+      refreshProfileEmails()
+      setRetrySentRemindersModal(false)
+      toast.success(res.data?.message || 'Retrying sent reminders')
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to retry sent reminders'),
   })
   const clearMut = useMutation({
     mutationFn: () => profileEmailsService.clear(selectedProfile, selectedEmployeeId),
@@ -273,8 +283,8 @@ export default function ProfileEmails() {
               label={isAdmin(user) ? 'Step 2 — Select Profile' : 'Select Profile'}
               value={selectedProfile}
               onChange={val => { setSelectedProfile(val || ''); setPage(1) }}
-              disabled={isAdmin(user) && !selectedEmployeeId && user?.role !== 'super_admin'}
-              placeholder={isAdmin(user) && !selectedEmployeeId && user?.role !== 'super_admin' ? 'Select an employee first...' : 'Choose a profile...'}
+              // disabled={isAdmin(user) && !selectedEmployeeId && user?.role !== 'super_admin'}
+              placeholder="Choose a profile..."
               options={profiles.map(p => ({ label: p.profileName, value: p.id }))}
             />
           </div>
@@ -300,11 +310,19 @@ export default function ProfileEmails() {
                   <RotateCcw className="w-4 h-4" /> Retry
                 </Button>
               </motion.div>
+             
               <motion.div {...btnHover}>
                 <Button variant="secondary" size="sm" onClick={downloadFailedEmails}>
                   <Download className="w-4 h-4" /> Download Failed
                 </Button>
               </motion.div>
+               {mailType === 'reminder' && (
+                <motion.div {...btnHover}>
+                  <Button variant="secondary" size="sm" onClick={() => setRetrySentRemindersModal(true)} loading={retrySentRemindersMut.isPending}>
+                    <RotateCcw className="w-4 h-4" /> Status Changer
+                  </Button>
+                </motion.div>
+              )}
               <motion.div {...btnHover}>
                 <Button variant="danger" size="sm" onClick={() => setClearModal(true)} loading={clearMut.isPending}>
                   <Trash2 className="w-4 h-4" /> Clear
@@ -443,6 +461,18 @@ export default function ProfileEmails() {
             <Button variant="secondary" onClick={() => setConvertModal(false)}>Cancel</Button>
             <Button onClick={() => convertMut.mutate()} loading={convertMut.isPending}>
               <ArrowRightLeft className="w-4 h-4" /> Move
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={retrySentRemindersModal} onClose={() => setRetrySentRemindersModal(false)} title="Confirm Status Change">
+        <div className="space-y-4">
+          <p className="text-gray-700">Are you sure you want to retry the sent reminders for this profile?</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setRetrySentRemindersModal(false)}>Cancel</Button>
+            <Button onClick={() => retrySentRemindersMut.mutate()} loading={retrySentRemindersMut.isPending}>
+              <RotateCcw className="w-4 h-4" /> Confirm
             </Button>
           </div>
         </div>

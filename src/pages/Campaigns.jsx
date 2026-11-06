@@ -82,7 +82,9 @@ export default function Campaigns() {
     profileId: '', 
     dailyLimit: '',
     employeeId: '',
-    mailType: 'draft'
+    mailType: 'draft',
+    autoReminderEnabled: true,
+    reminderDelayDays: 7,
   })
   const [scheduleForm, setScheduleForm] = useState({
     campaignName: '',
@@ -91,6 +93,8 @@ export default function Campaigns() {
     scheduledTime: '',
     dailyLimit: '',
     employeeId: '',
+    autoReminderEnabled: true,
+    reminderDelayDays: 7,
     mailType: 'draft',
     maxRetries: 3,
     recurrenceType: 'daily',  // 'once', 'daily', 'weekly'
@@ -217,6 +221,8 @@ export default function Campaigns() {
         employeeId: '',
         mailType: 'draft',
         maxRetries: 3,
+        reminderDelayDays: 7,
+        autoReminderEnabled: true,
         recurrenceType: 'daily',
         recurrenceDays: [],
         recurrenceEndDate: ''
@@ -231,6 +237,11 @@ export default function Campaigns() {
 
   const handleStart = () => {
     if (!form.campaignName || !form.profileId) return toast.error('Campaign name and profile required')
+    const autoReminderEnabled = form.autoReminderEnabled
+    const reminderDelayDays = Number(form.reminderDelayDays)
+    if (form.mailType !== 'reminder' && autoReminderEnabled && (!Number.isInteger(reminderDelayDays) || reminderDelayDays < 1 || reminderDelayDays > 15)) {
+      return toast.error('Reminder delay must be between 1 and 15 days')
+    }
     if (form.mailType === 'reminder') {
       if (isFetchingStartProfile) return toast.error('Loading profile reminder templates. Please try again shortly.')
       if (startProfileError) return toast.error('Could not load the selected profile reminder templates.')
@@ -244,6 +255,10 @@ export default function Campaigns() {
       profileId: form.profileId, 
       dailyLimit: form.dailyLimit ? Number(form.dailyLimit) : undefined,
       mailType: form.mailType,
+      ...(form.mailType !== 'reminder' && {
+        autoReminderEnabled,
+        reminderDelayDays: autoReminderEnabled ? reminderDelayDays : null,
+      }),
       employeeId: form.employeeId || selectedEmployeeId,
     })
   }
@@ -253,6 +268,11 @@ export default function Campaigns() {
     if (!scheduleForm.campaignName) errs.campaignName = "Campaign name is required"
     if (!scheduleForm.profileId) errs.profileId = "Profile is required"
     if (!scheduleForm.scheduledTime) errs.scheduledTime = "Time is required"
+    const autoReminderEnabled = scheduleForm.autoReminderEnabled
+    const reminderDelayDays = Number(scheduleForm.reminderDelayDays)
+    if (scheduleForm.mailType !== 'reminder' && autoReminderEnabled && (!Number.isInteger(reminderDelayDays) || reminderDelayDays < 1 || reminderDelayDays > 15)) {
+      errs.reminderDelayDays = 'Reminder delay must be between 1 and 15 days'
+    }
 
     if (Object.keys(errs).length > 0) {
       setScheduleErrors(errs)
@@ -295,6 +315,10 @@ export default function Campaigns() {
       recurrenceEndDate: scheduleForm.recurrenceEndDate || null,
       dailyLimit: scheduleForm.dailyLimit ? Number(scheduleForm.dailyLimit) : undefined,
       maxRetries: Number(scheduleForm.maxRetries),
+      ...(scheduleForm.mailType !== 'reminder' && {
+        reminderDelayDays: autoReminderEnabled ? reminderDelayDays : null,
+        autoReminderEnabled,
+      }),
       mailType: scheduleForm.mailType,
       employeeId: scheduleForm.employeeId || selectedEmployeeId,
     })
@@ -342,7 +366,7 @@ export default function Campaigns() {
         </div>
         <div className="flex gap-2">
           <motion.div whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.97 }}>
-            <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '', mailType: 'draft' }); setModal(true) }}>
+            <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '', mailType: 'draft', autoReminderEnabled: true, reminderDelayDays: 7 }); setModal(true) }}>
               <Plus className="w-4 h-4" /> Start
             </Button>
           </motion.div>
@@ -350,7 +374,7 @@ export default function Campaigns() {
             <Button variant="secondary" size="sm" onClick={() => { 
               setScheduleForm({ 
                 campaignName: '', profileId: '', scheduledFor: '', scheduledTime: '', dailyLimit: '', employeeId: '', mailType: 'draft', maxRetries: 3,
-                recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '' 
+                recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '', autoReminderEnabled: true, reminderDelayDays: 7
               }); 
               setScheduleErrors({});
               setScheduleModal(true) 
@@ -566,22 +590,49 @@ export default function Campaigns() {
         </div>
       )}
 
-      {/* Start Campaign Modal */}
-      <Modal open={modal} onClose={() => setModal(false)} title="Start New Campaign">
-        <div className="space-y-4">
-          <Input label="Campaign Name" value={form.campaignName} onChange={f('campaignName')} placeholder="e.g. July USA Tech CEOs" />
-          {isAdmin(user) && (
-            <SearchableSelect label="Employee" value={form.employeeId || ''} onChange={(val) => setForm(p => ({ ...p, employeeId: val }))} placeholder="Select an employee..." options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))} />
-          )}
-          <SearchableSelect label="Profile" value={form.profileId} onChange={(val) => setForm(p => ({ ...p, profileId: val }))} disabled={isAdmin(user) && !form.employeeId} placeholder={isAdmin(user) && !form.employeeId ? 'Select an employee first...' : 'Select a profile...'} options={startProfiles.filter(p => !isAdmin(user) || p.employeeId === form.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))} />
-          <SearchableSelect
-            label="Campaign Type"
-            value={form.mailType}
-            onChange={val => setForm(p => ({ ...p, mailType: val }))}
-            options={[{ label: 'Draft', value: 'draft' }, { label: 'Reminder', value: 'reminder' }]}
+    {/* Start Campaign Modal */}
+    <Modal open={modal} onClose={() => setModal(false)} title="Start New Campaign">
+      <div className="space-y-4">
+        <Input label="Campaign Name" value={form.campaignName} onChange={f('campaignName')} placeholder="e.g. July USA Tech CEOs" />
+        {isAdmin(user) && (
+          <SearchableSelect label="Employee" value={form.employeeId || ''} onChange={(val) => setForm(p => ({ ...p, employeeId: val }))} placeholder="Select an employee..." options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))} />
+        )}
+        <SearchableSelect label="Profile" value={form.profileId} onChange={(val) => setForm(p => ({ ...p, profileId: val }))} disabled={isAdmin(user) && !form.employeeId} placeholder={isAdmin(user) && !form.employeeId ? 'Select an employee first...' : 'Select a profile...'} options={startProfiles.filter(p => !isAdmin(user) || p.employeeId === form.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))} />
+        {form.mailType !== 'reminder' && (
+        <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.autoReminderEnabled}
+            onChange={e => setForm(p => ({ ...p, autoReminderEnabled: e.target.checked }))}
+            className="rounded border-gray-300 text-primary-600"
           />
-          {/* {form.mailType === 'reminder' && (
-            <p className="text-xs text-slate-500">
+          <span>Enable the Automated Reminder</span>
+        </label>
+        )}
+
+        <div className={`${form.mailType !== 'reminder' ? 'grid grid-cols-2 gap-3' : ''}`}>
+          <SearchableSelect
+          label="Campaign Type"
+          value={form.mailType}
+          onChange={val => setForm(p => ({ ...p, mailType: val }))}
+          options={[{ label: 'Draft', value: 'draft' }, { label: 'Reminder', value: 'reminder' }]}
+        />
+        {form.mailType !== 'reminder' && (
+          <Input
+            label="Day's to Reminder"
+            type='number'
+            min={1}
+            max={15}
+            value={form.reminderDelayDays}
+            onChange={f('reminderDelayDays')}
+            placeholder="Automated Reminder days"
+            // required
+          />
+        )}
+       </div>
+
+        {/* {form.mailType === 'reminder' && (
+          <p className="text-xs text-slate-500">
               Reminder emails use the profile’s weighted reminder templates and the recipient’s original email subject and thread.
             </p>
           )} */}
@@ -640,12 +691,40 @@ export default function Campaigns() {
             placeholder={isAdmin(user) && !scheduleForm.employeeId ? 'Select an employee first...' : 'Select a profile...'}
             options={scheduleProfiles.filter(p => !isAdmin(user) || p.employeeId === scheduleForm.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))}
           />
-          <SearchableSelect
+        {scheduleForm.mailType !== 'reminder' && (
+          <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={scheduleForm.autoReminderEnabled}
+            onChange={e => {setScheduleForm(p => ({ ...p, autoReminderEnabled: e.target.checked }))}}
+            className="rounded border-gray-300 text-primary-600"
+          />
+          <span>Enable the Automated Reminder</span>
+        </label>
+          )}
+         <div className={`${scheduleForm.mailType === 'draft' ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 gap-3'}`}>
+            <SearchableSelect
             label="Campaign Type"
             value={scheduleForm.mailType}
             onChange={val => setScheduleForm(p => ({ ...p, mailType: val }))}
             options={[{ label: 'Draft', value: 'draft' }, { label: 'Reminder', value: 'reminder' }]}
           />
+          {scheduleForm.mailType !== 'reminder' &&(
+            <Input
+            label="Day's to Reminder"
+            type='number'
+            min={1}
+            max={15}
+            value={scheduleForm.reminderDelayDays}
+            onChange={sf('reminderDelayDays')}
+            placeholder="Automated Reminder days"
+            error={scheduleErrors.reminderDelayDays}
+            // required
+          />
+          )}
+
+          </div>
+
           {/* {scheduleForm.mailType === 'reminder' && (
             <p className="text-xs text-slate-500">
               Reminder emails use the profile’s weighted reminder templates and the recipient’s original email subject and thread.
@@ -673,7 +752,6 @@ export default function Campaigns() {
               required
             />
           </div>
-
           <Input 
             label="Daily Limit (optional)" 
             type="number" 

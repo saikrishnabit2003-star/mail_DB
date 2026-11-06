@@ -4,7 +4,7 @@ import { dashboardService } from '../services/dashboard.service'
 import { useAuth } from '../context/AuthContext'
 import StatCard from '../components/ui/StatCard'
 import Badge from '../components/ui/Badge'
-import { Database, Send, Activity, Play, CheckCircle, XCircle, Clock, Percent, Users, TrendingUp, Zap, Mail, Cog, CheckCircle2 } from 'lucide-react'
+import { Database, Send, Activity, Play, CheckCircle, XCircle,FileText,ChartNoAxesCombined,SendHorizontal,Inbox,ChartColumn, Clock, Percent, Users, TrendingUp, Zap, Mail, Cog, CheckCircle2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format } from 'date-fns'
 import { motion, AnimatePresence, animate, useReducedMotion } from 'framer-motion'
@@ -221,7 +221,7 @@ export default function EmployeeDashboard() {
       {d?.currentUser.role === 'employee' && (
         <motion.div
           variants={itemVariants}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-400 text-white shadow-2xl shadow-blue-500/30 px-8 py-4"
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-br  from-blue-500 via-indigo-500 to-cyan-400 text-white shadow-2xl shadow-blue-500/30 px-8 py-4"
         >
           <motion.div
             animate={reduce ? {} : { x: [0, -30, 0], y: [0, 20, 0] }}
@@ -251,12 +251,10 @@ export default function EmployeeDashboard() {
             </div>
           </div>
         </motion.div>
-      )}
-
-      {/*  */}
+      )}     
 
       {/* Light panel behind the cards */}
-      <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 p-6 space-y-8 shadow-inner">
+      <div className="max-h-[calc(92vh-16rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-3xl border border-white/60 bg-gradient-to-br from-sky-50 via-indigo-50/70 to-cyan-50 p-6 space-y-8 shadow-inner">
         {/* Global Overview Stats */}
         <motion.div variants={itemVariants} className="space-y-4">
           <h3 className="font-bold text-xs flex items-center gap-2 text-slate-500 tracking-wider uppercase">
@@ -267,9 +265,23 @@ export default function EmployeeDashboard() {
             <LightStatCard label="Profiles" value={d?.activeProfiles || 0} sub="Total profiles" icon={Users} color="blue" onDoubleClick={() => nav("/profiles")} />
             
             <LightStatCard label="Overall Sent" value={d?.overallSent || 0} sub="All time sent" icon={Send} color="green" />
-            <LightStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} sub="Mon - Sun" icon={Send} color="cyan" />
+          </div>
+        </motion.div >
+          
+        <motion.div variants={itemVariants} className="space-y-4">
+          <h3 className="font-bold text-xs flex items-center gap-2 text-slate-500 tracking-wider uppercase">
+            <Activity className="w-3.5 h-3.5" /> Performances
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
+            {/* <LightStatCard label="Overall Sent" value={d?.overallSent || 0} sub="All time sent" icon={Send} color="green" /> */}
+            {/* <LightStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} sub="Mon - Sun" icon={Send} color="cyan" /> */}
             <LightStatCard label="Campaigns" value={d?.totalCampaigns || 0} sub="Total created" icon={TrendingUp} color="indigo" onDoubleClick={() => nav("/campaigns")} />
             <LightStatCard label="Running" value={d?.runningCampaigns || 0} sub="Active campaigns" icon={Play} color="pink" />
+
+            <LightStatCard label="Last Week Sent" value={d?.lastWeekSent || 0} sub="Last Week Performance" icon={SendHorizontal} color="cyan" />
+            <LightStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} sub="This Week Performance (Mon - Sun)" icon={Inbox} color="blue" />
+            <LightStatCard label="Last Month Sent" value={d?.lastMonthSent || 0} sub="Last Month Performance" icon={ChartNoAxesCombined} color="green" />
+            <LightStatCard label="Current Month Sent" value={d?.currentMonthSent || 0} sub="This Month Performance (26th – 25th)" icon={ChartColumn} color="purple" />
           </div>
         </motion.div>
 
