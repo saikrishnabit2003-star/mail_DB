@@ -7,7 +7,6 @@ import { notificationsService } from '../../services/notifications.service'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { format } from 'date-fns'
-import { playNotificationSound } from '../../lib/notificationSound'
 
 const MARQUEE_PASSES = 3      // the message runs fully across the bar this many times, then the bar closes
 const MARQUEE_SPEED = 70      // pixels per second
@@ -182,12 +181,6 @@ export default function Header({ title, toggleSidebar }) {
       if (prevNotifIds !== null) {
         const newNotifs = notifs.filter(n => !prevNotifIds.has(n.id) && !n.isRead)
         if (newNotifs.length > 0) {
-          if (notificationSoundEnabled) {
-            playNotificationSound().catch(error => {
-              console.warn('Unable to play notification sound.', error)
-            })
-          }
-
           // Only show the latest 1 notification
           const latest = newNotifs[0]
           
@@ -222,7 +215,7 @@ export default function Header({ title, toggleSidebar }) {
       }
       setPrevNotifIds(new Set(notifs.map(n => n.id)))
     }
-  }, [notifData, notificationSoundEnabled])
+  }, [notifData])
 
   const toggleNotificationSound = () => {
     setNotificationSoundEnabled(enabled => {

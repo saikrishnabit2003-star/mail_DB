@@ -6,6 +6,7 @@ import { Toaster, ToastBar, toast } from 'react-hot-toast'
 import { X } from 'lucide-react'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
+import NotificationSoundListener from './components/NotificationSoundListener'
 import App from './App'
 import './index.css'
 
@@ -24,7 +25,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ThemeProvider defaultTheme="system" storageKey="app-ui-theme">
-            <App />
+            <>
+              <NotificationSoundListener />
+              <App />
+            </>
             <Toaster
               position="top-right"
               containerStyle={{ zIndex: 11000 }}

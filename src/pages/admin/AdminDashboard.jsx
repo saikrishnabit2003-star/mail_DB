@@ -185,9 +185,6 @@ const EnhancedStatCard = ({ label, value, icon: Icon, color, subtitle, onDoubleC
   )
 }
 
-// Charts removed from original table definition to be inline
-
-
 export default function AdminDashboard() {
   const { user } = useAuth()
   const reduce = useReducedMotion()
@@ -256,14 +253,14 @@ export default function AdminDashboard() {
                 <Zap className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-              <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-1">Welcome Back</p>
-              <h1 className="text-2xl lg:text-1xl font-bold mb-1 tracking-tight">{d.currentUser.name}</h1>
-              {isAdmin && (
-                <p className="text-white/80">{d.currentUser.email} · Admin</p>
-              )}
-              {isSuperAdmin && (
-                <p className="text-white/80">{d.currentUser.email} · Super Admin</p>
-              )}
+                <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-1">Welcome Back</p>
+                <h1 className="text-2xl lg:text-1xl font-bold mb-1 tracking-tight">{d.currentUser.name}</h1>
+                {isAdmin && (
+                  <p className="text-white/80">{d.currentUser.email} · Admin</p>
+                )}
+                {isSuperAdmin && (
+                 <p className="text-white/80">{d.currentUser.email} · Super Admin</p>
+                )}
               </div>
             </div>
             <div className="hidden lg:flex justify-end">
