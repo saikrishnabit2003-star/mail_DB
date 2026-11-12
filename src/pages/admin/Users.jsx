@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersService } from '../../services/users.service'
 import { optionsService } from '../../services/options.service'
@@ -14,40 +15,85 @@ import { format } from 'date-fns'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
 
-const FilterDropdown = ({ title, value, onChange, options }) => {
+const FilterDropdown = ({ title, value, onChange, options, multiSelect = false }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [dropdownPosition, setDropdownPosition] = useState(null);
   const ref = useRef(null);
+  const dropdownRef = useRef(null);
   const reduce = useReducedMotion()
 
   useEffect(() => {
+    if (!open) return
+
+    const updatePosition = () => {
+      if (!ref.current) return
+      const bounds = ref.current.getBoundingClientRect()
+      const maxHeight = Math.min(240, window.innerHeight - 16)
+      const openAbove = bounds.bottom + maxHeight + 4 > window.innerHeight && bounds.top > maxHeight
+      setDropdownPosition({
+        left: Math.max(8, Math.min(bounds.left, window.innerWidth - 408)),
+        top: openAbove ? Math.max(8, bounds.top - maxHeight - 4) : bounds.bottom + 4,
+      })
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
+      if (
+        ref.current && !ref.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
         setOpen(false);
         setSearch('');
       }
     }
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+      document.removeEventListener('mousedown', handleClick)
+    }
+  }, [open]);
 
   const filteredOptions = options.filter(opt => opt.label.toLowerCase().includes(search.toLowerCase()));
+  const isActive = multiSelect ? value.length > 0 : Boolean(value);
+
+  const toggleOption = (optionValue) => {
+    if (value.includes(optionValue)) {
+      onChange(value.filter(item => item !== optionValue));
+    } else {
+      onChange([...value, optionValue]);
+    }
+  }
 
   return (
     <div className="relative inline-flex items-center gap-1 cursor-pointer" ref={ref}>
       <span onClick={() => setOpen(!open)}>{title}</span>
       <Filter
-        className={`w-3.5 h-3.5 ${value ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
+        className={`w-3.5 h-3.5 ${isActive ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
       />
-      {open && (
-        // folds open from the top edge (never starts invisible)
+      {open && dropdownPosition && createPortal(
         <motion.div
+          ref={dropdownRef}
           initial={reduce ? false : { rotateX: -30, y: -4 }}
           animate={{ rotateX: 0, y: 0 }}
           transition={{ duration: 0.18 }}
-          style={{ transformPerspective: 700, transformOrigin: 'top left' }}
-          className="absolute top-full left-0 mt-1 flex max-h-[min(240px,60vh)] flex-col bg-white border border-gray-200 rounded shadow-lg z-50 p-1.5 min-w-[140px] overflow-hidden" onClick={e => e.stopPropagation()}>
+          style={{
+            position: 'fixed',
+            left: dropdownPosition.left,
+            top: dropdownPosition.top,
+            width: 'min(400px, calc(100vw - 16px))',
+            maxHeight: 'min(240px, calc(100vh - 16px))',
+            transformPerspective: 700,
+            transformOrigin: 'top left',
+            zIndex: 1000,
+          }}
+          className="flex flex-col bg-white border border-gray-200 rounded shadow-lg p-1.5 overflow-hidden"
+          onClick={e => e.stopPropagation()}
+        >
           <div className="relative mb-1">
             <input
               type="text"
@@ -59,18 +105,37 @@ const FilterDropdown = ({ title, value, onChange, options }) => {
             />
           </div>
           <ul className="min-h-0 max-h-[200px] flex-1 overflow-y-auto overscroll-contain text-xs">
-            <li 
-              className={`px-2 py-1.5 cursor-pointer hover:bg-gray-100 rounded ${value === '' ? 'bg-primary-50 text-primary-600 font-medium' : ''}`}
-              onClick={() => { onChange(''); setOpen(false); setSearch(''); }}
+            <li
+              className={`px-2 py-1.5 cursor-pointer hover:bg-gray-100 rounded ${
+                (multiSelect ? value.length === 0 : value === '') ? 'bg-primary-50 text-primary-600 font-medium' : ''
+              }`}
+              onClick={() => {
+                onChange(multiSelect ? [] : '');
+                if (!multiSelect) setOpen(false);
+                setSearch('');
+              }}
             >
               All
             </li>
             {filteredOptions.map(opt => (
               <li
                 key={opt.value}
-                className={`px-2 py-1.5 cursor-pointer hover:bg-gray-100 rounded ${value === opt.value ? 'bg-primary-50 text-primary-600 font-medium' : ''}`}
-                onClick={() => { onChange(opt.value); setOpen(false); setSearch(''); }}
+                className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-100 rounded ${
+                  (multiSelect ? value.includes(opt.value) : value === opt.value) ? 'bg-primary-50 text-primary-600 font-medium' : ''
+                }`}
+                onClick={() => {
+                  if (multiSelect) {
+                    toggleOption(opt.value);
+                  } else {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }
+                  setSearch('');
+                }}
               >
+                {multiSelect && (
+                  <input type="checkbox" checked={value.includes(opt.value)} readOnly className="rounded border-gray-300" />
+                )}
                 {opt.label}
               </li>
             ))}
@@ -78,7 +143,8 @@ const FilterDropdown = ({ title, value, onChange, options }) => {
               <li className="px-2 py-1.5 text-gray-500 text-center">No results</li>
             )}
           </ul>
-        </motion.div>
+        </motion.div>,
+        document.body
       )}
     </div>
   )
@@ -113,7 +179,8 @@ export default function Users() {
   const [selectedIds, setSelectedIds] = useState([])
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [statusFilter, setStatusFilter] = useState('')
-  const [branchFilter, setBranchFilter] = useState('')
+  const [branchFilter, setBranchFilter] = useState([])
+  const [userInfoFilter, setUserInfoFilter] = useState([])
   const [sortField, setSortField] = useState(null)
   const [sortOrder, setSortOrder] = useState('desc')
 
@@ -145,10 +212,16 @@ export default function Users() {
   // For the filter, only show branches that are actually present in the current tab
   const tableBranches = [...new Set(tabUsers.map(u => u.branch).filter(Boolean))]
   const tableBranchOptions = tableBranches.map(b => ({ label: b, value: b }))
+  const userInfoOptions = tabUsers.map(u => ({
+    label: `${u.name || 'Unnamed'} — ${u.email || 'No email'}`,
+    value: u.id,
+  }))
+  const hasActiveFilters = Boolean(statusFilter || branchFilter.length || userInfoFilter.length || sortField)
   
   let filteredUsers = tabUsers.filter(u => {
+    if (userInfoFilter.length && !userInfoFilter.includes(u.id)) return false;
     if (statusFilter && u.status !== statusFilter) return false;
-    if (branchFilter && u.branch !== branchFilter) return false;
+    if (branchFilter.length && !branchFilter.includes(u.branch)) return false;
     return true;
   })
 
@@ -277,7 +350,15 @@ export default function Users() {
     { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{i + 1}</span> },
     {
       key: 'user',
-      label: 'User Info',
+      label: (
+        <FilterDropdown
+          title="User Info"
+          value={userInfoFilter}
+          onChange={setUserInfoFilter}
+          options={userInfoOptions}
+          multiSelect
+        />
+      ),
       render: (_, row) => (
         <div className="flex items-center gap-3 group">
           {/* <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm group-hover:shadow-md transition-all duration-300 group-hover:scale-105">
@@ -324,6 +405,7 @@ export default function Users() {
           value={branchFilter}
           onChange={setBranchFilter}
           options={tableBranchOptions}
+          multiSelect
         />
       ),
       render: (v) => <span className="text-gray-600 font-medium">{v || '—'}</span>
@@ -417,7 +499,7 @@ export default function Users() {
             <div className="flex gap-6 mb-2">
               <motion.button
                 whileHover={tabHover}
-                onClick={() => { setActiveTab('employee'); setSelectedIds([]); }}
+                onClick={() => { setActiveTab('employee'); setSelectedIds([]); setUserInfoFilter([]); setBranchFilter([]); }}
                 className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'employee' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
                 style={{ marginBottom: '-17px' }}
               >
@@ -426,7 +508,7 @@ export default function Users() {
               {hasFullAccess && isSuperAdmin &&(
                 <motion.button
                   whileHover={tabHover}
-                  onClick={() => { setActiveTab('admin'); setSelectedIds([]); }}
+                  onClick={() => { setActiveTab('admin'); setSelectedIds([]); setUserInfoFilter([]); setBranchFilter([]); }}
                   className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'admin' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
                   style={{ marginBottom: '-17px' }}
                 >
@@ -436,7 +518,7 @@ export default function Users() {
               {isSuperAdmin && (
                 <motion.button
                   whileHover={tabHover}
-                  onClick={() => { setActiveTab('super_admin'); setSelectedIds([]); }}
+                  onClick={() => { setActiveTab('super_admin'); setSelectedIds([]); setUserInfoFilter([]); setBranchFilter([]); }}
                   className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'super_admin' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
                   style={{ marginBottom: '-17px' }}
                 >
@@ -447,6 +529,21 @@ export default function Users() {
             <p className="text-sm text-gray-500 mt-10">{filteredUsers.length} users</p>
           </div>
           <div className="flex gap-2">
+            {hasActiveFilters && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setStatusFilter('')
+                  setBranchFilter([])
+                  setUserInfoFilter([])
+                  setSortField(null)
+                  setSortOrder('desc')
+                }}
+              >
+                <RefreshCw className="w-4 h-4" /> Clear Filters
+              </Button>
+            )}
             {hasFullAccess && activeTab === 'employee' && selectedIds.length > 0 && (
               <Button
                 size="sm"

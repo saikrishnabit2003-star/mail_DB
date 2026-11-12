@@ -311,10 +311,10 @@ export default function AdminDashboard() {
         <motion.div variants={itemVariants}>
           <h2 className="text-lg font-bold mb-2 text-slate-500 uppercase tracking-wider text-xs">Performance</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <EnhancedStatCard label="Last Week Sent" value={d?.lastWeekSent || 0} icon={SendHorizontal} color="purple" subtitle="Last Week Performance" />
-            <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} icon={Inbox} color="cyan" subtitle="This Week Performance (Mon - Sun)"/>
-            <EnhancedStatCard label="Last Month Sent" value={d?.lastMonthSent || 0} icon={ChartNoAxesCombined} color="blue" subtitle="Last Month Performance" />
-            <EnhancedStatCard label="Current Month Sent" value={d?.currentMonthSent || 0} icon={ChartColumn} color="green" subtitle="This Month Performance (26th – 25th)" />
+            <EnhancedStatCard label="Last Week Sent" value={d?.lastWeekSent || 0} icon={SendHorizontal} color="purple" subtitle="Previous Week" />
+            <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} icon={Inbox} color="cyan" subtitle="This Week (Mon - Sun)"/>
+            <EnhancedStatCard label="Last Month Sent" value={d?.lastMonthSent || 0} icon={ChartNoAxesCombined} color="blue" subtitle="Previous Month" />
+            <EnhancedStatCard label="Current Month Sent" value={d?.currentMonthSent || 0} icon={ChartColumn} color="green" subtitle="This Month (26th – 25th)" />
             {/* <EnhancedStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} icon={Send} color="cyan" subtitle="Mon - Sun" /> */}
           </div>
         </motion.div>

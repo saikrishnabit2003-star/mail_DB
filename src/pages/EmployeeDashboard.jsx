@@ -278,10 +278,10 @@ export default function EmployeeDashboard() {
             <LightStatCard label="Campaigns" value={d?.totalCampaigns || 0} sub="Total created" icon={TrendingUp} color="indigo" onDoubleClick={() => nav("/campaigns")} />
             <LightStatCard label="Running" value={d?.runningCampaigns || 0} sub="Active campaigns" icon={Play} color="pink" />
 
-            <LightStatCard label="Last Week Sent" value={d?.lastWeekSent || 0} sub="Last Week Performance" icon={SendHorizontal} color="cyan" />
-            <LightStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} sub="This Week Performance (Mon - Sun)" icon={Inbox} color="blue" />
-            <LightStatCard label="Last Month Sent" value={d?.lastMonthSent || 0} sub="Last Month Performance" icon={ChartNoAxesCombined} color="green" />
-            <LightStatCard label="Current Month Sent" value={d?.currentMonthSent || 0} sub="This Month Performance (26th – 25th)" icon={ChartColumn} color="purple" />
+            <LightStatCard label="Last Week Sent" value={d?.lastWeekSent || 0} sub="Previous Week" icon={SendHorizontal} color="cyan" />
+            <LightStatCard label="Current Week Sent" value={d?.currentWeekSent || 0} sub="This Week (Mon - Sun)" icon={Inbox} color="blue" />
+            <LightStatCard label="Last Month Sent" value={d?.lastMonthSent || 0} sub="Previous Month" icon={ChartNoAxesCombined} color="green" />
+            <LightStatCard label="Current Month Sent" value={d?.currentMonthSent || 0} sub="This Month (26th – 25th)" icon={ChartColumn} color="purple" />
           </div>
         </motion.div>
 

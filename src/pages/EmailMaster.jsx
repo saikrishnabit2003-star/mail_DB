@@ -37,6 +37,27 @@ const getWebsiteUrl = (value) => {
   }
 }
 
+const FIXED_EMAIL_TABLE_COLUMN_KEYS = ['actions', 'sno', 'fullName', 'email', 'domain']
+const DEFAULT_EMAIL_TABLE_OPTIONAL_COLUMN_KEYS = [
+  'university',
+  'website',
+  'country',
+  'state',
+  'city',
+  'domain_group',
+  'industry',
+  'designation',
+  'phone',
+  'linkedin',
+  'mailSource',
+  'inProfileEmails',
+  'usageCount',
+  'profileNames',
+  'usedByEmployeeNames',
+  'uploadedByName',
+  'uploadedDate',
+]
+
 export default function EmailMaster() {
   const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
@@ -56,6 +77,7 @@ export default function EmailMaster() {
   const [uploaderFilter, setUploaderFilter] = useState([])
   const [mailSourceFilter, setMailSourceFilter] = useState([])
   const [includeDuplicates, setIncludeDuplicates] = useState(true)
+  const [visibleOptionalColumns, setVisibleOptionalColumns] = useState(DEFAULT_EMAIL_TABLE_OPTIONAL_COLUMN_KEYS)
   const [activeTab, setActiveTab] = useState(isAdmin(user) ? 'table' : 'upload') // default tab based on role
 
   // ---- 3D animation helpers (visual only) ----
@@ -84,7 +106,7 @@ export default function EmailMaster() {
   const [historyEndDate, setHistoryEndDate] = useState('')
   const [historyEmployee, setHistoryEmployee] = useState('')
   const [historyPage, setHistoryPage] = useState(1)
-  const [historyPageSize, setHistoryPageSize] = useState(100)
+  const [historyPageSize, setHistoryPageSize] = useState(50)
   const [historySortField, setHistorySortField] = useState(null)
   const [historySortOrder, setHistorySortOrder] = useState('desc')
   // Upload Wizard States
@@ -672,6 +694,12 @@ export default function EmailMaster() {
     mailSourceFilter,
     options.uploaders,
   ])
+  const tableColumnOptions = columns
+    .filter(column => !FIXED_EMAIL_TABLE_COLUMN_KEYS.includes(column.key))
+    .map(column => ({ label: column.label, value: column.key }))
+  const visibleTableColumns = columns.filter(column =>
+    FIXED_EMAIL_TABLE_COLUMN_KEYS.includes(column.key) || visibleOptionalColumns.includes(column.key)
+  )
 
   const handleHistorySort = (field) => {
     if (historySortField === field) {
@@ -1025,7 +1053,6 @@ export default function EmailMaster() {
                     onChange={e => { setHistoryPageSize(Number(e.target.value)); setHistoryPage(1) }}
                     className="border border-gray-200 rounded-md py-1 px-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
-                    <option value={20}>20</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
                     <option value={500}>500</option>
@@ -1199,7 +1226,7 @@ export default function EmailMaster() {
                     setMailSourceFilter([])
                     setPage(1)
                   }}
-                  className="text-l font-medium p-2 text-red-500 hover:text-red-600  hover:bg-red-100 rounded-2xl transition-all cursor-pointer"
+                  className="text-sm font-semibold p-1.5 text-red-500 hover:text-red-600  hover:bg-red-100 rounded-xl transition-all cursor-pointer"
                 >
                   Clear All
                 </button>
@@ -1255,6 +1282,14 @@ export default function EmailMaster() {
                     .map(s => ({ label: s, value: s }))
                 ]}
                 placeholder="All Sources"
+              />
+              <MultiSelect
+                label="Table Columns"
+                value={visibleOptionalColumns}
+                onChange={setVisibleOptionalColumns}
+                options={tableColumnOptions}
+                placeholder="Select columns"
+                maxHeight={220}
               />
             </div>
           </div>
@@ -1345,7 +1380,7 @@ export default function EmailMaster() {
                     onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
                     className="border border-gray-200 rounded-md py-1 px-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
-                    <option value={20}>20</option>
+                    {/* <option value={20}>20</option> */}
                     <option value={50}>50</option>
                     <option value={100}>100</option>
                     <option value={500}>500</option>
@@ -1372,7 +1407,7 @@ export default function EmailMaster() {
             </div>
 
             {/* Table */}
-            <Table columns={columns} data={records} loading={isLoading || isFetching} emptyMsg="No emails found" wrapperClassName="overflow-auto bg-white max-h-[calc(100vh-320px)] relative" />
+            <Table columns={visibleTableColumns} data={records} loading={isLoading || isFetching} emptyMsg="No emails found" wrapperClassName="overflow-auto bg-white max-h-[calc(100vh-320px)] relative" />
           </div>
         </motion.div>
       )}

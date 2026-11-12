@@ -122,8 +122,9 @@ export default function Profiles() {
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState(defaultForm)
+  const [initialEditForm, setInitialEditForm] = useState(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null)
-  const [profileAgeSort, setProfileAgeSort] = useState('all')
+  const [profileAgeSort, setProfileAgeSort] = useState('new')
   const [hideInactiveProfiles, setHideInactiveProfiles] = useState(false)
   // Own data = no employee filter selected (admin viewing their own profiles)
   const isOwnData = !selectedEmployeeId
@@ -226,13 +227,41 @@ export default function Profiles() {
     onError: (e) => toast.error(getErrorMessage(e, 'Failed to create profile')),
   })
   const updateMut = useMutation({
-    mutationFn: ({ id, d }) => {
+    mutationFn: ({ id, d, employeeScopeId }) => {
       const { employeeId, ...rest } = d
-      rest.reminderTemplates = formatReminderTemplates(rest.reminderTemplates)
-      // Pass employeeId as both form data (for reassignment) and keep selectedEmployeeId for context
-      return profilesService.update(id, { ...rest, employeeId: employeeId || undefined }, selectedEmployeeId)
+      const payload = {
+        ...rest,
+        ...(employeeId ? { employeeId } : {}),
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'reminderTemplates')) {
+        payload.reminderTemplates = formatReminderTemplates(payload.reminderTemplates)
+      }
+      return profilesService.update(id, payload, employeeScopeId)
     },
-    onSuccess: () => { qc.invalidateQueries(['profiles']); setModal(null); toast.success('Profile updated') },
+    onSuccess: (res, { id, d, employeeScopeId }) => {
+      const updatedProfile = res.data?.data
+      qc.setQueryData(['profiles', employeeScopeId], cached => {
+        if (!cached?.data?.data) return cached
+        return {
+          ...cached,
+          data: {
+            ...cached.data,
+            data: cached.data.data.map(profile =>
+              String(profile.id) === String(id)
+                ? {
+                    ...profile,
+                    ...d,
+                    ...(String(updatedProfile?.id) === String(id) ? updatedProfile : {}),
+                  }
+                : profile
+            ),
+          },
+        }
+      })
+      qc.invalidateQueries(['profiles'])
+      setModal(null)
+      toast.success('Profile updated')
+    },
     onError: (e) => toast.error(getErrorMessage(e, 'Failed to update profile')),
   })
   const deleteMut = useMutation({
@@ -535,10 +564,13 @@ export default function Profiles() {
     setReminderTemplateErrors([])
     if (profile) {
       setSelected(profile)
-      setForm(formatProfileForEdit(profile))
+      const editForm = formatProfileForEdit(profile)
+      setForm(editForm)
+      setInitialEditForm(JSON.parse(JSON.stringify(editForm)))
     } else {
       setSelected(null)
       setForm(defaultForm)
+      setInitialEditForm(null)
     }
     setModal(type)
   }
@@ -628,7 +660,22 @@ export default function Profiles() {
       return toast.error('kindly fix sending options errors');
     }
 
-    modal === 'create' ? createMut.mutate(form) : updateMut.mutate({ id: selected.id, d: form })
+    if (modal === 'create') {
+      createMut.mutate(form)
+      return
+    }
+
+    const editableKeys = [...Object.keys(defaultForm), 'employeeId']
+    const changedFields = Object.fromEntries(
+      editableKeys
+        .filter(key => JSON.stringify(form[key]) !== JSON.stringify(initialEditForm?.[key]))
+        .map(key => [key, form[key]])
+    )
+    if (!Object.keys(changedFields).length) {
+      setModal(null)
+      return
+    }
+    updateMut.mutate({ id: selected.id, d: changedFields, employeeScopeId: selectedEmployeeId })
   }
 
   return (
@@ -834,7 +881,7 @@ export default function Profiles() {
                       label="Gmail / SMTP Account"
                       value={form.gmailAccount || ''}
                       onChange={f('gmailAccount')}
-                      placeholder="you@gmail.com"
+                      placeholder="yourProfile@gmail.com"
                     />
                     <p className="text-xs text-amber-600 mt-1">
                       {isAdmin(user) && !activeEmployeeIdForAccounts

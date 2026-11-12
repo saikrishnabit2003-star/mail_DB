@@ -83,8 +83,8 @@ export default function Campaigns() {
     dailyLimit: '',
     employeeId: '',
     mailType: 'draft',
-    autoReminderEnabled: true,
-    reminderDelayDays: 7,
+    autoReminderEnabled: false,
+    reminderDelayDays: 1,
   })
   const [scheduleForm, setScheduleForm] = useState({
     campaignName: '',
@@ -93,8 +93,8 @@ export default function Campaigns() {
     scheduledTime: '',
     dailyLimit: '',
     employeeId: '',
-    autoReminderEnabled: true,
-    reminderDelayDays: 7,
+    autoReminderEnabled: false,
+    reminderDelayDays: 1,
     mailType: 'draft',
     maxRetries: 3,
     recurrenceType: 'daily',  // 'once', 'daily', 'weekly'
@@ -106,7 +106,7 @@ export default function Campaigns() {
   const campaignStatuses = [{ value: 'running', label: 'Running' },{value: 'scheduled', label: 'Scheduled'}, { value: 'paused', label: 'Paused' }, { value: 'completed', label: 'Completed' }, { value: 'failed', label: 'Failed' }]
 
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(25)
   const [selectedStatus, setSelectedStatus] = useState('all')
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['campaigns', selectedEmployeeId, selectedStatus, page, pageSize],
@@ -134,6 +134,13 @@ export default function Campaigns() {
 
   const rawData = data?.data?.data
   const campaigns = Array.isArray(rawData) ? rawData : (rawData?.data || [])
+  const sortedCampaigns = campaigns.slice().sort((a, b) => {
+    const parsedA = Date.parse(a.startedAt)
+    const parsedB = Date.parse(b.startedAt)
+    const startA = Number.isNaN(parsedA) ? Number.POSITIVE_INFINITY : parsedA
+    const startB = Number.isNaN(parsedB) ? Number.POSITIVE_INFINITY : parsedB
+    return startA - startB
+  })
   const total = rawData?.total || campaigns.length
   const totalPages = rawData?.totalPages || Math.ceil(total / pageSize) || 1
   const profiles  = profilesData?.data?.data || []
@@ -221,8 +228,8 @@ export default function Campaigns() {
         employeeId: '',
         mailType: 'draft',
         maxRetries: 3,
-        reminderDelayDays: 7,
-        autoReminderEnabled: true,
+        reminderDelayDays: 1,
+        autoReminderEnabled: false,
         recurrenceType: 'daily',
         recurrenceDays: [],
         recurrenceEndDate: ''
@@ -366,7 +373,7 @@ export default function Campaigns() {
         </div>
         <div className="flex gap-2">
           <motion.div whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.97 }}>
-            <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '', mailType: 'draft', autoReminderEnabled: true, reminderDelayDays: 7 }); setModal(true) }}>
+            <Button size="sm" onClick={() => { setForm({ campaignName: '', profileId: '', dailyLimit: '', employeeId: '', mailType: 'draft', autoReminderEnabled: false, reminderDelayDays: 1 }); setModal(true) }}>
               <Plus className="w-4 h-4" /> Start
             </Button>
           </motion.div>
@@ -374,7 +381,7 @@ export default function Campaigns() {
             <Button variant="secondary" size="sm" onClick={() => { 
               setScheduleForm({ 
                 campaignName: '', profileId: '', scheduledFor: '', scheduledTime: '', dailyLimit: '', employeeId: '', mailType: 'draft', maxRetries: 3,
-                recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '', autoReminderEnabled: true, reminderDelayDays: 7
+                recurrenceType: 'daily', recurrenceDays: [], recurrenceEndDate: '', autoReminderEnabled: false, reminderDelayDays: 1
               }); 
               setScheduleErrors({});
               setScheduleModal(true) 
@@ -409,7 +416,7 @@ export default function Campaigns() {
             animate="show"
             className="space-y-4"
           >
-          {campaigns.map(c => {
+          {sortedCampaigns.map(c => {
             const pct = progress(c)
             return (
               <motion.div variants={itemVariants} key={c.id} whileHover={reduce ? {} : { y: -4 }} transition={{ type: 'spring', stiffness: 300, damping: 22 }}>
@@ -563,7 +570,6 @@ export default function Campaigns() {
                 onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
                 className="border border-slate-200 rounded-lg py-1 px-2 bg-slate-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value={10}>10</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
@@ -593,12 +599,12 @@ export default function Campaigns() {
     {/* Start Campaign Modal */}
     <Modal open={modal} onClose={() => setModal(false)} title="Start New Campaign">
       <div className="space-y-4">
-        <Input label="Campaign Name" value={form.campaignName} onChange={f('campaignName')} placeholder="e.g. July USA Tech CEOs" />
+        <Input label="Campaign Name" value={form.campaignName} onChange={f('campaignName')} placeholder="e.g., draft mail" />
         {isAdmin(user) && (
           <SearchableSelect label="Employee" value={form.employeeId || ''} onChange={(val) => setForm(p => ({ ...p, employeeId: val }))} placeholder="Select an employee..." options={employees.map(emp => ({ label: `${emp.name} — ${emp.email}`, value: emp.id }))} />
         )}
         <SearchableSelect label="Profile" value={form.profileId} onChange={(val) => setForm(p => ({ ...p, profileId: val }))} disabled={isAdmin(user) && !form.employeeId} placeholder={isAdmin(user) && !form.employeeId ? 'Select an employee first...' : 'Select a profile...'} options={startProfiles.filter(p => !isAdmin(user) || p.employeeId === form.employeeId).map(p => ({ label: `${p.profileName} — ${p.gmailAccount}`, value: p.id }))} />
-        {form.mailType !== 'reminder' && (
+        {/* {form.mailType !== 'reminder' && (
         <label className="col-span-2 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
           <input
             type="checkbox"
@@ -608,20 +614,20 @@ export default function Campaigns() {
           />
           <span>Enable the Automated Reminder</span>
         </label>
-        )}
+        )} */}
 
-        <div className={`${form.mailType !== 'reminder' ? 'grid grid-cols-2 gap-3' : ''}`}>
+        <div className={`${form.mailType !== 'reminder' && form.autoReminderEnabled ? 'grid grid-cols-2 gap-3' : ''}`}>
           <SearchableSelect
           label="Campaign Type"
           value={form.mailType}
           onChange={val => setForm(p => ({ ...p, mailType: val }))}
           options={[{ label: 'Draft', value: 'draft' }, { label: 'Reminder', value: 'reminder' }]}
         />
-        {form.mailType !== 'reminder' && (
+        {form.mailType !== 'reminder' && form.autoReminderEnabled && (
           <Input
             label="Day's to Reminder"
             type='number'
-            min={1}
+            min={0}
             max={15}
             value={form.reminderDelayDays}
             onChange={f('reminderDelayDays')}
@@ -674,7 +680,7 @@ export default function Campaigns() {
             label="Campaign Name" 
             value={scheduleForm.campaignName} 
             onChange={sf('campaignName')} 
-            placeholder="e.g. Future Campaign"
+            placeholder="e.g., draft mail"
             error={scheduleErrors.campaignName}
             required
           />
@@ -702,14 +708,14 @@ export default function Campaigns() {
           <span>Enable the Automated Reminder</span>
         </label>
           )}
-         <div className={`${scheduleForm.mailType === 'draft' ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 gap-3'}`}>
+         <div className={`${scheduleForm.mailType === 'draft' && scheduleForm.autoReminderEnabled ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 gap-3'}`}>
             <SearchableSelect
             label="Campaign Type"
             value={scheduleForm.mailType}
             onChange={val => setScheduleForm(p => ({ ...p, mailType: val }))}
             options={[{ label: 'Draft', value: 'draft' }, { label: 'Reminder', value: 'reminder' }]}
           />
-          {scheduleForm.mailType !== 'reminder' &&(
+          {scheduleForm.mailType !== 'reminder' && scheduleForm.autoReminderEnabled && (
             <Input
             label="Day's to Reminder"
             type='number'

@@ -11,11 +11,12 @@ const titles = {
   '/admin/employees': 'Employees',
   '/email-master': 'Email Master',
   '/profiles': 'Profiles',
-  '/email-accounts': 'Email Accounts',
+  '/email-accounts': 'APP Password',
   '/campaigns': 'Campaigns',
   '/profile-emails': 'Profile Emails',
   '/templates': 'Templates',
   '/notifications': 'Notifications',
+  '/settings': 'Settings',
 }
 
 export default function Layout({ children }) {

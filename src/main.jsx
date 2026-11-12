@@ -7,8 +7,17 @@ import { X } from 'lucide-react'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import NotificationSoundListener from './components/NotificationSoundListener'
+import NotificationBadgeListener from './components/NotificationBadgeListener'
 import App from './App'
 import './index.css'
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(error => {
+      console.error('Unable to register the service worker.', error)
+    })
+  })
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +36,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <ThemeProvider defaultTheme="system" storageKey="app-ui-theme">
             <>
               <NotificationSoundListener />
+              <NotificationBadgeListener />
               <App />
             </>
             <Toaster

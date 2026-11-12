@@ -10,7 +10,7 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import SearchableSelect from '../components/ui/SearchableSelect'
-import { Plus, Pencil, Trash2, Wifi, CheckCircle, AlertCircle, Mail, PowerOff, Server } from 'lucide-react'
+import { Plus, Pencil, Trash2, Wifi, CheckCircle, AlertCircle, Mail, PowerOff, Server, RotateCcw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { motion, animate, useReducedMotion } from 'framer-motion'
@@ -74,6 +74,7 @@ export default function EmailAccounts() {
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState(blank)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null)
+  const [tableFilters, setTableFilters] = useState({ name: [], email: [], type: [], status: [] })
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [smtpTestResult, setSmtpTestResult] = useState(null) // null, 'testing', 'success', 'error'
   const [smtpTestMessage, setSmtpTestMessage] = useState('')
@@ -105,6 +106,23 @@ export default function EmailAccounts() {
     queryFn: () => emailAccountsService.list(selectedEmployeeId)
   })
   const accounts = data?.data?.data || []
+  const uniqueFilterOptions = values => [
+    ...Array.from(new Set(values.filter(value => value != null && String(value).trim()).map(String)))
+      .sort((a, b) => a.localeCompare(b))
+      .map(value => ({ label: value, value })),
+  ]
+  const nameOptions = uniqueFilterOptions(accounts.map(account => account.displayName))
+  const emailOptions = uniqueFilterOptions(accounts.map(account => account.email))
+  const typeOptions = uniqueFilterOptions(accounts.map(account => account.accountType))
+  const statusOptions = uniqueFilterOptions(accounts.map(account => account.isActive ? 'active' : 'inactive'))
+    .map(option => ({ ...option, label: option.value === 'active' ? 'Active' : 'Inactive' }))
+  const filteredAccounts = accounts.filter(account =>
+    (!tableFilters.name.length || tableFilters.name.includes(String(account.displayName))) &&
+    (!tableFilters.email.length || tableFilters.email.includes(String(account.email))) &&
+    (!tableFilters.type.length || tableFilters.type.includes(String(account.accountType))) &&
+    (!tableFilters.status.length || tableFilters.status.includes(account.isActive ? 'active' : 'inactive'))
+  )
+  const hasTableFilters = Object.values(tableFilters).some(values => values.length > 0)
   const employees = (employeesData?.data?.data || []).slice().sort((a, b) => a.name.localeCompare(b.name))
   // Own data = no employee filter selected
   const isOwnData = !selectedEmployeeId
@@ -295,7 +313,7 @@ export default function EmailAccounts() {
       )
     },
     { key: 'sno', label: 'S.No', render: (_, __, i) => <span className="text-gray-400 font-medium">{(i + 1).toString().padStart(2, '0')}</span> },
-    { key: 'displayName', label: 'Name', render: v => (
+    { key: 'displayName', label: 'Name', filterOptions: nameOptions, filterValue: tableFilters.name, onFilterChange: value => setTableFilters(filters => ({ ...filters, name: value })), render: v => (
       <div className="flex items-center gap-2.5">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold uppercase text-white shadow-md">
           {v?.[0] || 'A'}
@@ -303,12 +321,12 @@ export default function EmailAccounts() {
         <span className="font-medium text-gray-800">{v}</span>
       </div>
     ) },
-    { key: 'email', label: 'Email', render: v => <span className="font-medium text-center text-gray-800">{v}</span> },
-    { key: 'accountType', label: 'Type', render: v => <Badge label={v} /> },
+    { key: 'email', label: 'Email', filterOptions: emailOptions, filterValue: tableFilters.email, onFilterChange: value => setTableFilters(filters => ({ ...filters, email: value })), render: v => <span className="font-medium text-center text-gray-800">{v}</span> },
+    { key: 'accountType', label: 'Type', filterOptions: typeOptions, filterValue: tableFilters.type, onFilterChange: value => setTableFilters(filters => ({ ...filters, type: value })), render: v => <Badge label={v} /> },
     { key: 'smtpHost', label: 'SMTP Host', render: v => <span className="text-gray-500">{v}</span> },
     { key: 'smtpPort', label: 'Port', render: v => <span className="text-gray-500">{v}</span> },
     // { key: 'apiCredentials', label: 'API Credentials', render: v => <span className="text-gray-500">{v}</span> },
-    { key: 'isActive', label: 'Status', render: v => <Badge label={v ? 'active' : 'inactive'} variant={v ? 'success' : 'default'} /> },
+    { key: 'isActive', label: 'Status', filterOptions: statusOptions, filterValue: tableFilters.status, onFilterChange: value => setTableFilters(filters => ({ ...filters, status: value })), render: v => <Badge label={v ? 'active' : 'inactive'} variant={v ? 'success' : 'default'} /> },
     { key: 'lastUsedAt', label: 'Last Used', render: v => v ? <span className="text-gray-500">{format(new Date(v), 'MMM d, yyyy')}</span> : <span className="text-gray-300">—</span> },
   ]
 // 
@@ -352,10 +370,22 @@ export default function EmailAccounts() {
       </motion.div>
 
       <motion.div {...flip} className="relative">
-        <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-          <Wifi className="w-3.5 h-3.5" /> Connected Accounts
-        </h3>
-        <Table columns={columns} data={accounts} loading={isLoading} emptyMsg="No email accounts yet" />
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <Wifi className="w-3.5 h-3.5" /> Connected Accounts
+          </h3>
+          {hasTableFilters && (
+            <button
+              type="button"
+              onClick={() => setTableFilters({ name: [], email: [], type: [], status: [] })}
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary-700 transition-colors hover:bg-white/70"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Clear filters
+            </button>
+          )}
+        </div>
+        <Table columns={columns} data={filteredAccounts} loading={isLoading} emptyMsg="No matching email accounts" />
       </motion.div>
 
       <Modal open={modal === 'create' || modal === 'edit'} onClose={() => { setModal(null); setSmtpTestResult(null); setAutoFillProfileId(''); setGmailApiFileName(''); }} title={modal === 'create' ? 'Add Email Account' : 'Edit Account'} size="md">

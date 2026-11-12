@@ -114,16 +114,20 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [show, setShow] = useState(false)
+  const [loginError, setLoginError] = useState('')
 
   const handle = async (e) => {
     e.preventDefault()
+    setLoginError('')
     setLoading(true)
     try {
       const user = await login(form.email, form.password)
       toast.success(`Welcome back, ${user.name}!`)
       navigate(['admin', 'super_admin'].includes(user.role) ? '/admin/dashboard' : '/dashboard')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid credentials')
+      const message = err?.response?.data?.message || err?.data?.message || err?.message || 'Invalid credentials'
+      setLoginError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -182,6 +186,11 @@ export default function Login() {
             <p className="mb-8 text-sm text-slate-500">Sign in to your account to continue</p>
 
             <form onSubmit={handle} className="space-y-5">
+              {loginError && (
+                <p role="alert" aria-live="assertive" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {loginError}
+                </p>
+              )}
               {/* Email field */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-slate-700">Email address</label>
@@ -190,9 +199,9 @@ export default function Login() {
                   <input
                     type="email"
                     required
-                    placeholder="you@company.com"
+                    placeholder="yourMail@gmail.com"
                     value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    onChange={e => { setLoginError(''); setForm(f => ({ ...f, email: e.target.value })) }}
                     className={`${inputCls} pl-10 pr-4`}
                   />
                 </div>
@@ -208,7 +217,7 @@ export default function Login() {
                     required
                     placeholder="••••••••"
                     value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                    onChange={e => { setLoginError(''); setForm(f => ({ ...f, password: e.target.value })) }}
                     className={`${inputCls} pl-10 pr-10`}
                   />
                   <button
